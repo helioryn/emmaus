@@ -1,0 +1,122 @@
+package com.btaylor.emmaus.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Create
+import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.btaylor.emmaus.AppViewModel
+import com.btaylor.emmaus.Screen
+import kotlinx.coroutines.delay
+
+@Composable
+fun EmmausApp(vm: AppViewModel) {
+    EmmausTheme(vm.themeName) {
+        val c = Emmaus.colors
+        val listState = rememberLazyListState()
+
+        LaunchedEffect(vm.bookId, vm.chapter) {
+            if (vm.chapterData != null) listState.scrollToItem(0)
+        }
+
+        BackHandler(enabled = vm.settingsOpen) { vm.settingsOpen = false }
+        BackHandler(enabled = vm.bookPickerOpen) { vm.bookPickerOpen = false }
+        BackHandler(enabled = vm.sheetOpen) { vm.sheetOpen = false }
+        BackHandler(enabled = vm.screen != Screen.READ && !vm.sheetOpen && !vm.bookPickerOpen && !vm.settingsOpen) {
+            vm.screen = Screen.READ
+        }
+
+        Scaffold(
+            containerColor = c.background,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            bottomBar = {
+                NavigationBar(containerColor = c.surfaceAlt, contentColor = c.ink) {
+                    val items = listOf(
+                        Triple(Screen.READ, "Read", Icons.Filled.MenuBook),
+                        Triple(Screen.SEARCH, "Search", Icons.Filled.Search),
+                        Triple(Screen.WORD, "Word", Icons.Outlined.Translate),
+                        Triple(Screen.NOTEBOOK, "Notebook", Icons.Outlined.Create)
+                    )
+                    items.forEach { (screen, label, icon) ->
+                        NavigationBarItem(
+                            selected = vm.screen == screen,
+                            onClick = { vm.screen = screen },
+                            icon = { Icon(icon, contentDescription = label) },
+                            label = { Text(label, fontSize = 10.sp, fontWeight = FontWeight.Medium) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = c.accent,
+                                selectedTextColor = c.accent,
+                                indicatorColor = c.accent.copy(alpha = 0.12f),
+                                unselectedIconColor = c.muted,
+                                unselectedTextColor = c.muted
+                            )
+                        )
+                    }
+                }
+            }
+        ) { padding ->
+            Box(Modifier.fillMaxSize().padding(padding)) {
+                when (vm.screen) {
+                    Screen.READ -> ReaderScreen(vm, listState)
+                    Screen.SEARCH -> SearchScreen(vm)
+                    Screen.WORD -> WordStudyScreen(vm)
+                    Screen.NOTEBOOK -> NotebookScreen(vm)
+                }
+            }
+        }
+
+        when {
+            vm.settingsOpen -> SettingsSheet(vm)
+            vm.bookPickerOpen -> BookPickerSheet(vm)
+            vm.sheetOpen -> StudySheet(vm)
+        }
+
+        vm.toast?.let { message ->
+            LaunchedEffect(message) {
+                delay(2200)
+                if (vm.toast == message) vm.toast = null
+            }
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 92.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Text(
+                    message,
+                    color = c.background,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(c.ink.copy(alpha = 0.94f))
+                        .padding(horizontal = 16.dp, vertical = 9.dp)
+                )
+            }
+        }
+    }
+}
