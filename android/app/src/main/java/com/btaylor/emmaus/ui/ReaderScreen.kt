@@ -79,6 +79,10 @@ fun ReaderScreen(vm: AppViewModel, listState: LazyListState) {
                     Spacer(Modifier.height(8.dp))
                     Text(vm.error ?: "This chapter is not in the selected translation.", color = c.muted, fontSize = 12.sp, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(14.dp))
+                    if (vm.activeTranslation.isOnline) {
+                        OutlinedButton(onClick = { vm.settingsOpen = true }) { Text("Add an API.Bible key") }
+                        Spacer(Modifier.height(8.dp))
+                    }
                     OutlinedButton(onClick = { vm.changeTranslation("KJV") }) { Text("Open KJV") }
                 }
             }
@@ -152,7 +156,12 @@ private fun ReaderTopBar(vm: AppViewModel) {
                 DropdownMenu(expanded = translationMenu, onDismissRequest = { translationMenu = false }) {
                     vm.bible.translations.forEach { tr ->
                         DropdownMenuItem(
-                            text = { Text("${tr.short} — ${tr.name}", fontSize = 12.sp) },
+                            text = {
+                                Text(
+                                    "${tr.short} — ${tr.name}" + if (tr.isOnline) "  · online" else "",
+                                    fontSize = 12.sp
+                                )
+                            },
                             onClick = {
                                 translationMenu = false
                                 vm.changeTranslation(tr.code)
@@ -336,15 +345,26 @@ private fun buildRuns(verse: Verse): List<WordRun> {
 @Composable
 private fun ChapterFooter(vm: AppViewModel) {
     val c = Emmaus.colors
-    Row(
-        Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 26.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        OutlinedButton(onClick = { vm.previousChapter() }, modifier = Modifier.weight(1f)) {
-            Text("← ${vm.chapter - 1}", color = c.ink)
+    Column(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 26.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedButton(onClick = { vm.previousChapter() }, modifier = Modifier.weight(1f)) {
+                Text("← ${vm.chapter - 1}", color = c.ink)
+            }
+            OutlinedButton(onClick = { vm.nextChapter() }, modifier = Modifier.weight(1f)) {
+                Text("${vm.chapter + 1} →", color = c.ink)
+            }
         }
-        OutlinedButton(onClick = { vm.nextChapter() }, modifier = Modifier.weight(1f)) {
-            Text("${vm.chapter + 1} →", color = c.ink)
+        val copyright = vm.apiCopyright
+        if (copyright != null) {
+            Spacer(Modifier.height(12.dp))
+            Text(copyright, color = c.muted, fontSize = 8.5.sp, lineHeight = 12.sp)
+            Spacer(Modifier.height(3.dp))
+            Text(
+                "Downloaded with your API.Bible key and cached on this device for 30 days.",
+                color = c.muted.copy(alpha = 0.8f),
+                fontSize = 8.sp,
+                lineHeight = 11.sp
+            )
         }
     }
 }

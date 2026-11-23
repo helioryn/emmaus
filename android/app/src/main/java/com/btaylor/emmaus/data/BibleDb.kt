@@ -9,7 +9,24 @@ import java.nio.ByteOrder
 import kotlin.math.max
 
 class BibleDb(private val context: Context) {
-    private val db: SQLiteDatabase = openDatabase()
+    @Volatile
+    private var database: SQLiteDatabase? = null
+
+    private val db: SQLiteDatabase
+        get() {
+            database?.let { return it }
+            synchronized(this) {
+                database?.let { return it }
+                val opened = openDatabase()
+                database = opened
+                return opened
+            }
+        }
+
+    /** Copies the bundled library out of the APK on first launch. Call from a background thread. */
+    fun prepare(): Long = db.path?.let { File(it).length() } ?: 0L
+
+    fun isPrepared(): Boolean = database != null
 
     private fun openDatabase(): SQLiteDatabase {
         val external = context.getExternalFilesDir(null)?.resolve("bible.db")
@@ -19,7 +36,7 @@ class BibleDb(private val context: Context) {
         val internal = File(context.filesDir, "bible.db")
         if (!internal.exists()) {
             context.assets.open("bible.db").use { input ->
-                internal.outputStream().use { output -> input.copyTo(output) }
+                internal.outputStream().use { output -> input.copyTo(output, 1 shl 16) }
             }
         }
         return SQLiteDatabase.openDatabase(internal.path, null, SQLiteDatabase.OPEN_READONLY)
@@ -27,7 +44,11 @@ class BibleDb(private val context: Context) {
 
     val translations: List<Translation> by lazy {
         val out = mutableListOf<Translation>()
-        db.rawQuery("SELECT code,name,short,lang_code,direction,has_strongs,has_red,has_interlinear FROM translations WHERE source='local' ORDER BY sort", null).use { c ->
+        db.rawQuery(
+            "SELECT code,name,short,lang_code,direction,has_strongs,has_red,has_interlinear,source,bible_id " +
+                "FROM translations ORDER BY CASE WHEN source='api' THEN 1 ELSE 0 END, sort",
+            null
+        ).use { c ->
             while (c.moveToNext()) {
                 out += Translation(
                     code = c.getString(0),
@@ -37,7 +58,9 @@ class BibleDb(private val context: Context) {
                     direction = c.getString(4),
                     hasStrongs = c.getInt(5) == 1,
                     hasRed = c.getInt(6) == 1,
-                    hasInterlinear = c.getInt(7) == 1
+                    hasInterlinear = c.getInt(7) == 1,
+                    source = c.getString(8) ?: "local",
+                    bibleId = if (c.isNull(9)) null else c.getString(9)
                 )
             }
         }
@@ -283,8 +306,36 @@ class BibleDb(private val context: Context) {
                 )
             }
         }
+        if (out.isEmpty()) {
+            // Translations imported from eBible.org are not in the FTS index.
+            return fallbackSearch(raw, translation, limit)
+        }
         return out.sortedWith(compareByDescending<SearchHit> { it.score }.thenBy { it.book }.thenBy { it.chapter }.thenBy { it.verse })
             .take(limit)
+    }
+
+    private fun fallbackSearch(raw: String, translation: String, limit: Int): List<SearchHit> {
+        val phrase = raw.trim().trim('"').replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        if (phrase.isBlank()) return emptyList()
+        val out = mutableListOf<SearchHit>()
+        db.rawQuery(
+            "SELECT book,chapter,verse,text FROM verses WHERE translation=? AND text LIKE ? ESCAPE '\\' " +
+                "ORDER BY book,chapter,verse LIMIT ?",
+            arrayOf(translation, "%$phrase%", limit.toString())
+        ).use { c ->
+            while (c.moveToNext()) {
+                val text = c.getString(3) ?: ""
+                out += SearchHit(
+                    book = c.getInt(0),
+                    chapter = c.getInt(1),
+                    verse = c.getInt(2),
+                    text = text,
+                    snippet = text,
+                    score = 1.0
+                )
+            }
+        }
+        return out
     }
 
     private fun ftsExpression(raw: String): String? {

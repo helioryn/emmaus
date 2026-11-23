@@ -3,6 +3,7 @@
 dist/
 data/raw/
 Resources/bible.db
+Resources/*.db.before-*
 Resources/AppIcon.iconset/
 Resources/AppIcon-1024.png
 shot_*.png
@@ -19,6 +20,8 @@ android/android_emulator.log
 android/shot_*.png
 android/captures/
 android/app/src/main/assets/bible.db
+android/*.jks
+android/*.keystore
 android/.idea/
 *.iml
 

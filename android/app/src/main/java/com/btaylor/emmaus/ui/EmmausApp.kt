@@ -3,13 +3,17 @@ package com.btaylor.emmaus.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Create
@@ -19,6 +23,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.btaylor.emmaus.AppViewModel
@@ -37,6 +43,10 @@ import kotlinx.coroutines.delay
 fun EmmausApp(vm: AppViewModel) {
     EmmausTheme(vm.themeName) {
         val c = Emmaus.colors
+        if (!vm.prepared) {
+            PreparingScreen(vm)
+            return@EmmausTheme
+        }
         val listState = rememberLazyListState()
 
         LaunchedEffect(vm.bookId, vm.chapter) {
@@ -49,8 +59,8 @@ fun EmmausApp(vm: AppViewModel) {
         BackHandler(
             enabled = vm.overviewOpen && !vm.sheetOpen && !vm.bookPickerOpen && !vm.settingsOpen
         ) { vm.closeOverview() }
-        BackHandler(enabled = vm.screen != Screen.READ && !vm.sheetOpen && !vm.bookPickerOpen && !vm.settingsOpen) {
-            vm.screen = Screen.READ
+        BackHandler(enabled = vm.screen != Screen.HOME && !vm.sheetOpen && !vm.bookPickerOpen && !vm.settingsOpen) {
+            vm.screen = Screen.HOME
         }
 
         Scaffold(
@@ -59,6 +69,7 @@ fun EmmausApp(vm: AppViewModel) {
             bottomBar = {
                 NavigationBar(containerColor = c.surfaceAlt, contentColor = c.ink) {
                     val items = listOf(
+                        Triple(Screen.HOME, "Home", Icons.Filled.Home),
                         Triple(Screen.READ, "Read", Icons.Filled.MenuBook),
                         Triple(Screen.SEARCH, "Search", Icons.Filled.Search),
                         Triple(Screen.WORD, "Word", Icons.Outlined.Translate),
@@ -87,6 +98,7 @@ fun EmmausApp(vm: AppViewModel) {
         ) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) {
                 when (vm.screen) {
+                    Screen.HOME -> HomeScreen(vm)
                     Screen.READ -> if (vm.overviewOpen) BookOverviewScreen(vm) else ReaderScreen(vm, listState)
                     Screen.SEARCH -> SearchScreen(vm)
                     Screen.WORD -> WordStudyScreen(vm)
@@ -122,6 +134,44 @@ fun EmmausApp(vm: AppViewModel) {
                         .background(c.ink.copy(alpha = 0.94f))
                         .padding(horizontal = 16.dp, vertical = 9.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PreparingScreen(vm: AppViewModel) {
+    val c = Emmaus.colors
+    Box(
+        Modifier.fillMaxSize().background(c.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Emmaus", color = c.ink, fontFamily = ReadingFont, fontSize = 36.sp, fontWeight = FontWeight.SemiBold)
+            Text("Scripture, opened.", color = c.muted, fontSize = 10.5.sp)
+            Spacer(Modifier.height(30.dp))
+            val problem = vm.error
+            when {
+                problem != null -> Text(
+                    problem,
+                    color = c.red,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 36.dp)
+                )
+                else -> {
+                    CircularProgressIndicator(color = c.accent)
+                    Spacer(Modifier.height(18.dp))
+                    Text("Preparing the library…", color = c.ink, fontSize = 13.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "First launch only — unpacking the bundled Bibles. This can take a minute.",
+                        color = c.muted,
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 44.dp)
+                    )
+                }
             }
         }
     }

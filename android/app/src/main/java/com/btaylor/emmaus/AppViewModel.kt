@@ -7,12 +7,17 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.btaylor.emmaus.audio.TtsManager
+import com.btaylor.emmaus.data.ApiBible
+import com.btaylor.emmaus.data.ApiBibleException
 import com.btaylor.emmaus.data.BibleDb
 import com.btaylor.emmaus.data.Book
+import com.btaylor.emmaus.data.BookNote
 import com.btaylor.emmaus.data.ChapterData
 import com.btaylor.emmaus.data.CommentaryEntry
 import com.btaylor.emmaus.data.CrossRef
+import com.btaylor.emmaus.data.DailyVerse
 import com.btaylor.emmaus.data.InterlinearWord
+import com.btaylor.emmaus.data.ReadingLocation
 import com.btaylor.emmaus.data.SearchHit
 import com.btaylor.emmaus.data.StrongsEntry
 import com.btaylor.emmaus.data.Translation
@@ -24,8 +29,9 @@ import com.btaylor.emmaus.data.verseKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
-enum class Screen { READ, SEARCH, WORD, NOTEBOOK }
+enum class Screen { HOME, READ, SEARCH, WORD, NOTEBOOK }
 enum class SheetTab(val label: String) {
     STUDY("Study"), WORD("Word"), ORIGINAL("Original"), COMPARE("Compare"), NOTES("Notes")
 }
@@ -34,8 +40,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val bible = BibleDb(app)
     val user = UserStore(app)
     val tts = TtsManager(app)
+    private val api = ApiBible(app)
 
-    var screen by mutableStateOf(Screen.READ)
+    /** False until the bundled library has been unpacked on first launch. */
+    var prepared by mutableStateOf(false)
+        private set
+    var preparing by mutableStateOf(true)
+        private set
+
+    var apiKey by mutableStateOf(user.setting("apiKey", ""))
+        private set
+    var apiStatus by mutableStateOf<String?>(null)
+        private set
+    var apiBusy by mutableStateOf(false)
+        private set
+    var apiCopyright by mutableStateOf<String?>(null)
+
+    var screen by mutableStateOf(Screen.HOME)
     var translationCode by mutableStateOf(user.setting("translation", "KJV"))
     var bookId by mutableStateOf(user.intSetting("book", 43))
     var chapter by mutableStateOf(user.intSetting("chapter", 1))
@@ -80,31 +101,123 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         get() = bible.book(bookId)
 
     init {
-        loadChapter(record = true)
+        viewModelScope.launch {
+            val error = withContext(Dispatchers.IO) {
+                runCatching { bible.prepare() }.exceptionOrNull()
+            }
+            preparing = false
+            if (error != null) {
+                this@AppViewModel.error = "Could not open the Bible library. ${error.message ?: ""}".trim()
+                loading = false
+                return@launch
+            }
+            prepared = true
+            loadChapter(record = true)
+        }
     }
 
     fun loadChapter(record: Boolean = false) {
+        if (!prepared) return
         loading = true
         error = null
+        apiCopyright = null
         val requestedBook = bookId
         val requestedChapter = chapter
         val requestedTranslation = translationCode
         viewModelScope.launch {
-            val data = withContext(Dispatchers.IO) {
-                bible.chapter(requestedTranslation, requestedBook, requestedChapter)
+            val outcome = withContext(Dispatchers.IO) {
+                try {
+                    val tr = bible.translation(requestedTranslation)
+                    if (tr != null && tr.source == "api") {
+                        val result = api.chapter(
+                            code = tr.code,
+                            bibleId = tr.bibleId ?: "",
+                            name = tr.name,
+                            book = requestedBook,
+                            chapter = requestedChapter,
+                            key = user.setting("apiKey")
+                        )
+                        Outcome(
+                            data = ChapterData(
+                                translation = tr.code,
+                                book = requestedBook,
+                                chapter = requestedChapter,
+                                verses = result.verses.map { Verse(it.first, it.second) }
+                            ),
+                            copyright = result.copyright,
+                            error = null
+                        )
+                    } else {
+                        Outcome(
+                            data = bible.chapter(requestedTranslation, requestedBook, requestedChapter),
+                            copyright = null,
+                            error = null
+                        )
+                    }
+                } catch (e: ApiBibleException) {
+                    Outcome(null, null, e.message ?: "API.Bible is not available.")
+                } catch (e: Exception) {
+                    Outcome(null, null, e.message ?: "Could not load this chapter.")
+                }
             }
             if (requestedBook != bookId || requestedChapter != chapter || requestedTranslation != translationCode) {
                 return@launch
             }
-            chapterData = data
+            chapterData = outcome.data
+            apiCopyright = outcome.copyright
             loading = false
-            if (data == null) error = "This chapter is not available in ${activeTranslation.short}."
+            if (outcome.data == null) {
+                error = outcome.error ?: "This chapter is not available in ${activeTranslation.short}."
+            }
             user.setSetting("book", bookId)
             user.setSetting("chapter", chapter)
             user.setSetting("translation", translationCode)
             if (record) user.recordRead(requestedBook, requestedChapter)
             val verse = selectedVerse
             if (sheetOpen && verse != null) loadStudy(verse)
+        }
+    }
+
+    private data class Outcome(
+        val data: ChapterData?,
+        val copyright: String?,
+        val error: String?
+    )
+
+    // ---- API.Bible ---------------------------------------------------------
+
+    fun saveApiKey(value: String) {
+        val clean = value.trim()
+        apiKey = clean
+        user.setSetting("apiKey", clean)
+        apiStatus = null
+    }
+
+    fun testApiKey() {
+        if (apiBusy) return
+        val key = apiKey.trim()
+        if (key.isEmpty()) {
+            apiStatus = "Paste your key first."
+            return
+        }
+        apiBusy = true
+        apiStatus = "Checking…"
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { api.test(key) }
+            }
+            apiBusy = false
+            apiStatus = result.fold(
+                onSuccess = { "Connected — $it English Bibles available." },
+                onFailure = { it.message ?: "That key did not work." }
+            )
+        }
+    }
+
+    fun clearApiCache() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { api.clearCache() }
+            apiStatus = "Downloaded chapters cleared."
         }
     }
 
@@ -152,8 +265,40 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun readChapters(book: Int): Set<Int> = user.readChapters(book)
     fun lastChapter(book: Int): Int? = user.lastChapter(book)
     fun chapterHasMarks(book: Int, chapter: Int): Boolean = user.chapterHasMarks(book, chapter)
-    fun notesInBook(book: Int): List<com.btaylor.emmaus.data.BookNote> = user.notesInBook(book)
+    fun notesInBook(book: Int): List<BookNote> = user.notesInBook(book)
+    fun recentNotes(limit: Int = 4): List<BookNote> = user.recentNotes(limit)
+    fun recentReadings(limit: Int = 6): List<ReadingLocation> = user.recentReadings(limit)
     val streak: Int get() = user.streak
+    val startedBooks: Int get() = user.startedBooks
+
+    fun versePreview(book: Int, chapter: Int): String =
+        bible.verseText(translationCode, book, chapter, 1)
+            ?: bible.verseText("KJV", book, chapter, 1)
+            ?: ""
+
+    private val dailyReferences = listOf(
+        Triple(43, 3, 16), Triple(45, 8, 28), Triple(19, 23, 1), Triple(23, 40, 31),
+        Triple(24, 29, 11), Triple(40, 11, 28), Triple(50, 4, 13), Triple(48, 2, 8),
+        Triple(49, 2, 8), Triple(58, 11, 1), Triple(20, 3, 5), Triple(19, 46, 1),
+        Triple(19, 27, 1), Triple(19, 91, 1), Triple(19, 121, 1), Triple(23, 53, 5),
+        Triple(26, 36, 26), Triple(43, 14, 6), Triple(43, 15, 5), Triple(44, 1, 8),
+        Triple(45, 12, 1), Triple(46, 13, 4), Triple(47, 5, 17), Triple(48, 5, 22),
+        Triple(50, 4, 6), Triple(51, 3, 23), Triple(52, 5, 16), Triple(53, 2, 16),
+        Triple(55, 1, 7), Triple(58, 4, 12), Triple(59, 1, 5), Triple(60, 5, 7),
+        Triple(62, 1, 9), Triple(62, 4, 18), Triple(63, 1, 7), Triple(65, 1, 24),
+        Triple(66, 21, 4), Triple(42, 6, 31), Triple(41, 10, 45), Triple(40, 6, 33),
+        Triple(19, 34, 8), Triple(19, 37, 4), Triple(19, 119, 105), Triple(23, 41, 10),
+        Triple(24, 33, 3)
+    )
+
+    fun dailyVerse(): DailyVerse {
+        val reference = dailyReferences[LocalDate.now().dayOfYear % dailyReferences.size]
+        val (book, chapter, verse) = reference
+        val text = bible.verseText(translationCode, book, chapter, verse)
+            ?: bible.verseText("KJV", book, chapter, verse)
+            ?: ""
+        return DailyVerse(book, chapter, verse, text)
+    }
 
     fun openReference(reference: String): Boolean {
         val r = parseReference(reference) ?: return false

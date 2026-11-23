@@ -8,9 +8,12 @@ data class Translation(
     val direction: String,
     val hasStrongs: Boolean,
     val hasRed: Boolean,
-    val hasInterlinear: Boolean
+    val hasInterlinear: Boolean,
+    val source: String = "local",
+    val bibleId: String? = null
 ) {
     val isRtl: Boolean get() = direction == "rtl"
+    val isOnline: Boolean get() = source == "api"
 }
 
 data class Book(
@@ -33,6 +36,13 @@ data class BookNote(
 data class ReadingLocation(
     val book: Int,
     val chapter: Int
+)
+
+data class DailyVerse(
+    val book: Int,
+    val chapter: Int,
+    val verse: Int,
+    val text: String
 )
 
 data class Token(

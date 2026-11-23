@@ -193,19 +193,35 @@ class UserStore(context: Context) {
             bookmarks.keys.any { it.startsWith(prefix) }
     }
 
-    fun notesInBook(book: Int): List<BookNote> {
+    fun notesInBook(book: Int): List<BookNote> = notesInBookAll().filter { it.book == book }
+
+    fun recentNotes(limit: Int = 6): List<BookNote> = notesInBookAll().take(limit)
+
+    private fun notesInBookAll(): List<BookNote> {
         val out = mutableListOf<BookNote>()
         for ((key, body) in notes) {
             val parts = key.split("-")
             if (parts.size != 3) continue
             val b = parts[0].toIntOrNull() ?: continue
-            if (b != book) continue
             val c = parts[1].toIntOrNull() ?: continue
             val v = parts[2].toIntOrNull() ?: continue
             out += BookNote(b, c, v, body, noteTimes[key] ?: 0L)
         }
         return out.sortedByDescending { it.updated }
     }
+
+    fun recentReadings(limit: Int = 6): List<ReadingLocation> {
+        val out = mutableListOf<ReadingLocation>()
+        for (entry in history.entries.sortedByDescending { it.value }) {
+            val parsed = parseChapterKey(entry.key) ?: continue
+            out += parsed
+            if (out.size >= limit) break
+        }
+        return out
+    }
+
+    val startedBooks: Int
+        get() = history.keys.mapNotNull { parseChapterKey(it)?.book }.toSet().size
 
     private fun parseChapterKey(key: String): ReadingLocation? {
         val parts = key.split("-")

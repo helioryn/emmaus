@@ -307,7 +307,15 @@ final class AppState: ObservableObject {
         let newBook = max(1, min(66, book))
         let bookMeta = bible.book(newBook)
         let newChapter = max(1, min(bookMeta?.chapters ?? 150, chapter))
-        let changed = newBook != bookId || newChapter != self.chapter
+        // Compare against what is actually on screen, not just the state vars: the book
+        // sidebar moves bookId without loading a chapter, so book 45 / chapter 1 can be
+        // "selected" while the reader still shows book 32 / chapter 1.
+        let shown = chapterData
+        let changed = newBook != bookId
+            || newChapter != self.chapter
+            || shown?.book != newBook
+            || shown?.chapter != newChapter
+            || shown?.translation != translationCode
         bookId = newBook
         self.chapter = newChapter
         section = .read
