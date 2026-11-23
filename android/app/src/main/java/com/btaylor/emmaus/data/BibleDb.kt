@@ -46,9 +46,9 @@ class BibleDb(private val context: Context) {
 
     val books: List<Book> by lazy {
         val out = mutableListOf<Book>()
-        db.rawQuery("SELECT id,name,short,testament,chapters FROM books ORDER BY sort", null).use { c ->
+        db.rawQuery("SELECT id,name,short,testament,genre,chapters FROM books ORDER BY sort", null).use { c ->
             while (c.moveToNext()) {
-                out += Book(c.getInt(0), c.getString(1), c.getString(2), c.getString(3), c.getInt(4))
+                out += Book(c.getInt(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4) ?: "", c.getInt(5))
             }
         }
         out

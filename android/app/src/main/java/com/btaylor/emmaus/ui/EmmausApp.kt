@@ -46,6 +46,9 @@ fun EmmausApp(vm: AppViewModel) {
         BackHandler(enabled = vm.settingsOpen) { vm.settingsOpen = false }
         BackHandler(enabled = vm.bookPickerOpen) { vm.bookPickerOpen = false }
         BackHandler(enabled = vm.sheetOpen) { vm.sheetOpen = false }
+        BackHandler(
+            enabled = vm.overviewOpen && !vm.sheetOpen && !vm.bookPickerOpen && !vm.settingsOpen
+        ) { vm.closeOverview() }
         BackHandler(enabled = vm.screen != Screen.READ && !vm.sheetOpen && !vm.bookPickerOpen && !vm.settingsOpen) {
             vm.screen = Screen.READ
         }
@@ -64,7 +67,10 @@ fun EmmausApp(vm: AppViewModel) {
                     items.forEach { (screen, label, icon) ->
                         NavigationBarItem(
                             selected = vm.screen == screen,
-                            onClick = { vm.screen = screen },
+                            onClick = {
+                                if (screen == Screen.READ && vm.screen == Screen.READ) vm.closeOverview()
+                                vm.screen = screen
+                            },
                             icon = { Icon(icon, contentDescription = label) },
                             label = { Text(label, fontSize = 10.sp, fontWeight = FontWeight.Medium) },
                             colors = NavigationBarItemDefaults.colors(
@@ -81,7 +87,7 @@ fun EmmausApp(vm: AppViewModel) {
         ) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) {
                 when (vm.screen) {
-                    Screen.READ -> ReaderScreen(vm, listState)
+                    Screen.READ -> if (vm.overviewOpen) BookOverviewScreen(vm) else ReaderScreen(vm, listState)
                     Screen.SEARCH -> SearchScreen(vm)
                     Screen.WORD -> WordStudyScreen(vm)
                     Screen.NOTEBOOK -> NotebookScreen(vm)

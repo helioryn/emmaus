@@ -4,15 +4,19 @@ import android.content.Context
 import androidx.compose.runtime.mutableStateMapOf
 import org.json.JSONObject
 import java.io.File
+import java.time.LocalDate
 
 class UserStore(context: Context) {
     private val file = File(context.filesDir, "user.json")
     private val lock = Any()
 
     val notes = mutableStateMapOf<String, String>()
+    val noteTimes = mutableStateMapOf<String, Long>()
     val highlights = mutableStateMapOf<String, Int>()
     val bookmarks = mutableStateMapOf<String, Boolean>()
     val settings = mutableStateMapOf<String, String>()
+    val history = mutableStateMapOf<String, Long>()
+    val activityDays = mutableStateMapOf<String, Long>()
 
     init {
         load()
@@ -40,6 +44,9 @@ class UserStore(context: Context) {
             root.optJSONObject("notes")?.let { o ->
                 o.keys().forEach { k -> notes[k] = o.optString(k) }
             }
+            root.optJSONObject("noteTimes")?.let { o ->
+                o.keys().forEach { k -> noteTimes[k] = o.optLong(k) }
+            }
             root.optJSONObject("highlights")?.let { o ->
                 o.keys().forEach { k -> highlights[k] = o.optInt(k) }
             }
@@ -48,6 +55,12 @@ class UserStore(context: Context) {
             }
             root.optJSONObject("settings")?.let { o ->
                 o.keys().forEach { k -> settings[k] = o.optString(k) }
+            }
+            root.optJSONObject("history")?.let { o ->
+                o.keys().forEach { k -> history[k] = o.optLong(k) }
+            }
+            root.optJSONObject("activityDays")?.let { o ->
+                o.keys().forEach { k -> activityDays[k] = o.optLong(k) }
             }
         } catch (_: Exception) {
         }
@@ -58,9 +71,12 @@ class UserStore(context: Context) {
             try {
                 val root = JSONObject()
                 root.put("notes", JSONObject(notes.toMap() as Map<*, *>))
+                root.put("noteTimes", JSONObject(noteTimes.toMap() as Map<*, *>))
                 root.put("highlights", JSONObject(highlights.toMap() as Map<*, *>))
                 root.put("bookmarks", JSONObject(bookmarks.toMap() as Map<*, *>))
                 root.put("settings", JSONObject(settings.toMap() as Map<*, *>))
+                root.put("history", JSONObject(history.toMap() as Map<*, *>))
+                root.put("activityDays", JSONObject(activityDays.toMap() as Map<*, *>))
                 file.writeText(root.toString())
             } catch (_: Exception) {
             }
@@ -87,7 +103,13 @@ class UserStore(context: Context) {
     fun saveNote(book: Int, chapter: Int, verse: Int, body: String) {
         val key = verseKey(book, chapter, verse)
         val trimmed = body.trim()
-        if (trimmed.isEmpty()) notes.remove(key) else notes[key] = trimmed
+        if (trimmed.isEmpty()) {
+            notes.remove(key)
+            noteTimes.remove(key)
+        } else {
+            notes[key] = trimmed
+            noteTimes[key] = System.currentTimeMillis()
+        }
         save()
     }
 
@@ -109,6 +131,90 @@ class UserStore(context: Context) {
         save()
     }
 
+    // Reading history & activity
+
+    fun recordRead(book: Int, chapter: Int) {
+        val now = System.currentTimeMillis()
+        history[chapterKey(book, chapter)] = now
+        activityDays[LocalDate.now().toString()] = now
+        save()
+    }
+
+    val streak: Int
+        get() {
+            var day = LocalDate.now()
+            if (activityDays[day.toString()] == null) {
+                day = day.minusDays(1)
+                if (activityDays[day.toString()] == null) return 0
+            }
+            var count = 0
+            while (activityDays[day.toString()] != null) {
+                count++
+                day = day.minusDays(1)
+            }
+            return count
+        }
+
+    val chaptersRead: Int get() = history.size
+
+    val lastReading: ReadingLocation?
+        get() {
+            val entry = history.maxByOrNull { it.value } ?: return null
+            return parseChapterKey(entry.key)
+        }
+
+    fun lastChapter(book: Int): Int? {
+        var best: Long? = null
+        var chapter: Int? = null
+        for ((key, timestamp) in history) {
+            val parsed = parseChapterKey(key) ?: continue
+            if (parsed.book != book) continue
+            if (best == null || timestamp > best) {
+                best = timestamp
+                chapter = parsed.chapter
+            }
+        }
+        return chapter
+    }
+
+    fun readChapters(book: Int): Set<Int> {
+        val out = mutableSetOf<Int>()
+        for (key in history.keys) {
+            val parsed = parseChapterKey(key) ?: continue
+            if (parsed.book == book) out += parsed.chapter
+        }
+        return out
+    }
+
+    fun chapterHasMarks(book: Int, chapter: Int): Boolean {
+        val prefix = "$book-$chapter-"
+        return notes.keys.any { it.startsWith(prefix) } ||
+            highlights.keys.any { it.startsWith(prefix) } ||
+            bookmarks.keys.any { it.startsWith(prefix) }
+    }
+
+    fun notesInBook(book: Int): List<BookNote> {
+        val out = mutableListOf<BookNote>()
+        for ((key, body) in notes) {
+            val parts = key.split("-")
+            if (parts.size != 3) continue
+            val b = parts[0].toIntOrNull() ?: continue
+            if (b != book) continue
+            val c = parts[1].toIntOrNull() ?: continue
+            val v = parts[2].toIntOrNull() ?: continue
+            out += BookNote(b, c, v, body, noteTimes[key] ?: 0L)
+        }
+        return out.sortedByDescending { it.updated }
+    }
+
+    private fun parseChapterKey(key: String): ReadingLocation? {
+        val parts = key.split("-")
+        if (parts.size != 2) return null
+        val b = parts[0].toIntOrNull() ?: return null
+        val c = parts[1].toIntOrNull() ?: return null
+        return ReadingLocation(b, c)
+    }
+
     fun noteKeys(): List<String> = notes.keys.sorted()
     fun bookmarkKeys(): List<String> = bookmarks.keys.sorted()
     fun highlightKeys(): List<String> = highlights.keys.sorted()
@@ -125,9 +231,12 @@ class UserStore(context: Context) {
     fun exportJson(): String {
         val root = JSONObject()
         root.put("notes", JSONObject(notes.toMap() as Map<*, *>))
+        root.put("noteTimes", JSONObject(noteTimes.toMap() as Map<*, *>))
         root.put("highlights", JSONObject(highlights.toMap() as Map<*, *>))
         root.put("bookmarks", JSONObject(bookmarks.toMap() as Map<*, *>))
         root.put("settings", JSONObject(settings.toMap() as Map<*, *>))
+        root.put("history", JSONObject(history.toMap() as Map<*, *>))
+        root.put("activityDays", JSONObject(activityDays.toMap() as Map<*, *>))
         return root.toString(2)
     }
 
@@ -137,11 +246,20 @@ class UserStore(context: Context) {
             root.optJSONObject("notes")?.let { o ->
                 o.keys().forEach { k -> notes[k] = o.optString(k) }
             }
+            root.optJSONObject("noteTimes")?.let { o ->
+                o.keys().forEach { k -> noteTimes[k] = o.optLong(k) }
+            }
             root.optJSONObject("highlights")?.let { o ->
                 o.keys().forEach { k -> highlights[k] = o.optInt(k) }
             }
             root.optJSONObject("bookmarks")?.let { o ->
                 o.keys().forEach { k -> if (o.optBoolean(k)) bookmarks[k] = true }
+            }
+            root.optJSONObject("history")?.let { o ->
+                o.keys().forEach { k -> history[k] = o.optLong(k) }
+            }
+            root.optJSONObject("activityDays")?.let { o ->
+                o.keys().forEach { k -> activityDays[k] = o.optLong(k) }
             }
             save()
         } catch (_: Exception) {

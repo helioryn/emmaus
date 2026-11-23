@@ -47,6 +47,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var selectedVerse by mutableStateOf<Int?>(null)
     var sheetOpen by mutableStateOf(false)
     var sheetTab by mutableStateOf(SheetTab.STUDY)
+    var overviewOpen by mutableStateOf(false)
     var bookPickerOpen by mutableStateOf(false)
     var settingsOpen by mutableStateOf(false)
 
@@ -79,15 +80,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         get() = bible.book(bookId)
 
     init {
-        loadChapter()
+        loadChapter(record = true)
     }
 
-    fun loadChapter() {
+    fun loadChapter(record: Boolean = false) {
         loading = true
         error = null
+        val requestedBook = bookId
+        val requestedChapter = chapter
+        val requestedTranslation = translationCode
         viewModelScope.launch {
             val data = withContext(Dispatchers.IO) {
-                bible.chapter(translationCode, bookId, chapter)
+                bible.chapter(requestedTranslation, requestedBook, requestedChapter)
+            }
+            if (requestedBook != bookId || requestedChapter != chapter || requestedTranslation != translationCode) {
+                return@launch
             }
             chapterData = data
             loading = false
@@ -95,17 +102,58 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             user.setSetting("book", bookId)
             user.setSetting("chapter", chapter)
             user.setSetting("translation", translationCode)
+            if (record) user.recordRead(requestedBook, requestedChapter)
+            val verse = selectedVerse
+            if (sheetOpen && verse != null) loadStudy(verse)
         }
     }
 
+    fun showBookOverview(book: Int = bookId) {
+        val target = book.coerceIn(1, 66)
+        screen = Screen.READ
+        sheetOpen = false
+        selectedVerse = null
+        selectedStrongs = null
+        overviewOpen = true
+        if (target != bookId) {
+            bookId = target
+            chapter = user.lastChapter(target) ?: 1
+            user.setSetting("book", bookId)
+            user.setSetting("chapter", chapter)
+            loadChapter(record = false)
+        }
+    }
+
+    fun closeOverview() {
+        overviewOpen = false
+    }
+
     fun open(book: Int, chapter: Int, verse: Int? = null) {
+        overviewOpen = false
         bookId = book.coerceIn(1, 66)
         this.chapter = chapter.coerceAtLeast(1)
         selectedVerse = verse
         sheetOpen = false
         screen = Screen.READ
-        loadChapter()
+        loadChapter(record = true)
     }
+
+    fun openNote(book: Int, chapter: Int, verse: Int) {
+        open(book, chapter, verse)
+        sheetTab = SheetTab.NOTES
+        sheetOpen = true
+        loadStudy(verse)
+    }
+
+    fun continueReading(book: Int) {
+        open(book, user.lastChapter(book) ?: 1)
+    }
+
+    fun readChapters(book: Int): Set<Int> = user.readChapters(book)
+    fun lastChapter(book: Int): Int? = user.lastChapter(book)
+    fun chapterHasMarks(book: Int, chapter: Int): Boolean = user.chapterHasMarks(book, chapter)
+    fun notesInBook(book: Int): List<com.btaylor.emmaus.data.BookNote> = user.notesInBook(book)
+    val streak: Int get() = user.streak
 
     fun openReference(reference: String): Boolean {
         val r = parseReference(reference) ?: return false

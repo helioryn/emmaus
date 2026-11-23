@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -117,15 +118,23 @@ private fun ReaderTopBar(vm: AppViewModel) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
-                Modifier.weight(1f).clickable { vm.bookPickerOpen = true }
+                Modifier.weight(1f).clickable { vm.showBookOverview(vm.bookId) }
             ) {
-                Text(
-                    vm.activeBook?.name ?: "Emmaus",
-                    color = c.ink,
-                    fontSize = 19.sp,
-                    fontFamily = ReadingFont,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        vm.activeBook?.name ?: "Emmaus",
+                        color = c.ink,
+                        fontSize = 19.sp,
+                        fontFamily = ReadingFont,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Icon(
+                        Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "Book overview",
+                        tint = c.muted,
+                        modifier = Modifier.width(18.dp)
+                    )
+                }
                 Text("Chapter ${vm.chapter} · ${vm.activeTranslation.short}", color = c.muted, fontSize = 10.sp)
             }
             Box {
@@ -191,7 +200,10 @@ private fun ChapterHeading(vm: AppViewModel) {
     val c = Emmaus.colors
     Column(Modifier.padding(bottom = 12.dp)) {
         Text(
-            if (vm.activeBook?.testament == "OT") "OLD TESTAMENT" else "NEW TESTAMENT",
+            listOfNotNull(
+                vm.activeBook?.genre?.takeIf { it.isNotBlank() }?.uppercase(),
+                if (vm.activeBook?.testament == "OT") "OLD TESTAMENT" else "NEW TESTAMENT"
+            ).joinToString("  ·  "),
             color = c.accent,
             fontSize = 9.5.sp,
             fontWeight = FontWeight.SemiBold,

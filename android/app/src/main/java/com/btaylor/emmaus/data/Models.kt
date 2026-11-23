@@ -18,7 +18,21 @@ data class Book(
     val name: String,
     val short: String,
     val testament: String,
+    val genre: String,
     val chapters: Int
+)
+
+data class BookNote(
+    val book: Int,
+    val chapter: Int,
+    val verse: Int,
+    val body: String,
+    val updated: Long
+)
+
+data class ReadingLocation(
+    val book: Int,
+    val chapter: Int
 )
 
 data class Token(
@@ -134,6 +148,8 @@ data class WordRun(
 )
 
 fun verseKey(book: Int, chapter: Int, verse: Int) = "$book-$chapter-$verse"
+
+fun chapterKey(book: Int, chapter: Int) = "$book-$chapter"
 
 fun refLabel(book: Book?, chapter: Int, verse: Int? = null): String {
     val name = book?.name ?: "Book"
