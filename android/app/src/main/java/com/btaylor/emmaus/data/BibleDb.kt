@@ -280,7 +280,7 @@ class BibleDb(private val context: Context) {
     }
 
     fun search(raw: String, translation: String, limit: Int = 200): List<SearchHit> {
-        val expr = ftsExpression(raw) ?: return emptyList()
+        val expr = SearchQuery.ftsExpression(raw) ?: return emptyList()
         val out = mutableListOf<SearchHit>()
         db.rawQuery(
             """
@@ -308,20 +308,30 @@ class BibleDb(private val context: Context) {
         }
         if (out.isEmpty()) {
             // Translations imported from eBible.org are not in the FTS index.
-            return fallbackSearch(raw, translation, limit)
+            return literalSearch(raw, translation, limit)
         }
         return out.sortedWith(compareByDescending<SearchHit> { it.score }.thenBy { it.book }.thenBy { it.chapter }.thenBy { it.verse })
             .take(limit)
     }
 
-    private fun fallbackSearch(raw: String, translation: String, limit: Int): List<SearchHit> {
-        val phrase = raw.trim().trim('"').replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        if (phrase.isBlank()) return emptyList()
+    /** Plain substring search for translations the FTS index does not cover. */
+    private fun literalSearch(raw: String, translation: String, limit: Int): List<SearchHit> {
+        var terms = SearchQuery.literalTerms(raw)
+        if (terms.isEmpty()) SearchQuery.sanitize(raw, allowSpaces = true)?.let { terms = listOf(it) }
+        if (terms.isEmpty()) return emptyList()
+
+        val where = StringBuilder("translation=?")
+        val args = mutableListOf<String>(translation)
+        for (term in terms.take(8)) {
+            where.append(" AND text LIKE ? ESCAPE '\\'")
+            args += "%${escapeLike(term)}%"
+        }
+        args += limit.toString()
+
         val out = mutableListOf<SearchHit>()
         db.rawQuery(
-            "SELECT book,chapter,verse,text FROM verses WHERE translation=? AND text LIKE ? ESCAPE '\\' " +
-                "ORDER BY book,chapter,verse LIMIT ?",
-            arrayOf(translation, "%$phrase%", limit.toString())
+            "SELECT book,chapter,verse,text FROM verses WHERE $where ORDER BY book,chapter,verse LIMIT ?",
+            args.toTypedArray()
         ).use { c ->
             while (c.moveToNext()) {
                 val text = c.getString(3) ?: ""
@@ -330,7 +340,7 @@ class BibleDb(private val context: Context) {
                     chapter = c.getInt(1),
                     verse = c.getInt(2),
                     text = text,
-                    snippet = text,
+                    snippet = highlight(text, terms),
                     score = 1.0
                 )
             }
@@ -338,17 +348,18 @@ class BibleDb(private val context: Context) {
         return out
     }
 
-    private fun ftsExpression(raw: String): String? {
-        val q = raw.trim()
-        if (q.isEmpty()) return null
-        if (q.startsWith("\"") && q.endsWith("\"") && q.length > 2) return q
-        val terms = q.split(Regex("\\s+")).filter { it.isNotBlank() }
-        if (terms.isEmpty()) return null
-        return terms.mapIndexed { i, t ->
-            val clean = t.replace("\"", "")
-            val suffix = if (i == terms.lastIndex && clean.length >= 2) "*" else ""
-            "\"$clean\"$suffix"
-        }.joinToString(" AND ")
+    private fun escapeLike(term: String): String = term
+        .replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+
+    private fun highlight(text: String, terms: List<String>): String {
+        var out = text
+        for (term in terms) {
+            if (term.isEmpty()) continue
+            out = Regex(Regex.escape(term), RegexOption.IGNORE_CASE).replace(out) { "⟦${it.value}⟧" }
+        }
+        return out
     }
 
     private fun score(blob: ByteArray?, textLength: Int): Double {
