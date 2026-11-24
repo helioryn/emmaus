@@ -25,6 +25,9 @@ jobs:
       - name: Build
         run: bash build_app.sh --no-db
 
+      - name: Unit tests
+        run: swift test
+
       - name: Verify the bundle
         run: |
           test -x "dist/Emmaus.app/Contents/MacOS/Emmaus"
@@ -60,6 +63,9 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest --no-daemon
 
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
