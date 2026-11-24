@@ -92,6 +92,18 @@ Kotlin 2.x, AGP 8.13, `compileSdk 36`, `minSdk 26`. See
 
 There is no formatter to argue about. Keep diffs small and readable.
 
+### Accessibility
+
+No analytics means a screen reader is how many people will meet the app. Keep it
+navigable:
+
+- Every icon-only control needs `.accessibilityLabel` on macOS and a
+  `contentDescription` on Android. A tooltip is not a label.
+- A verse is one element, not one per word. Word-level study belongs in the study
+  panel, which is reachable from the verse's accessibility actions.
+- Anything in a context menu should also be reachable as a named accessibility
+  action.
+
 ### Tests
 
 Every fix should come with a check that fails before it and passes after.
