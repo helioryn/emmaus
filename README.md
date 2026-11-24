@@ -9,6 +9,7 @@ A free, offline-first study Bible for macOS and Android.
 study desk — on your own device. No account. No ads. No subscription.
 
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
+[![CI](https://github.com/helioryn/emmaus/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/helioryn/emmaus/actions/workflows/ci.yml)
 [![Platforms](https://img.shields.io/badge/platforms-macOS%2014%2B%20%7C%20Android%208%2B-lightgrey.svg)](#download)
 [![Bibles](https://img.shields.io/badge/offline%20Bibles-41-8a6d3b.svg)](#the-library)
 [![Status](https://img.shields.io/badge/status-beta-orange.svg)](#project-status)
