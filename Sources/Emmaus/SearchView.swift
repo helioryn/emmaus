@@ -123,14 +123,23 @@ struct SearchView: View {
     private var resultsHeader: some View {
         let t = app.theme
         return HStack {
-            Text("\(app.searchResults.count) result\(app.searchResults.count == 1 ? "" : "s")")
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundColor(t.secondary)
-            Text("for “\(app.searchQuery)”")
-                .font(.system(size: 11.5))
-                .foregroundColor(t.secondary.opacity(0.7))
+            if app.isSearching {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text("Searching…")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundColor(t.secondary)
+                }
+            } else {
+                Text("\(app.searchResults.count) result\(app.searchResults.count == 1 ? "" : "s")")
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundColor(t.secondary)
+                Text("for “\(app.searchQuery)”")
+                    .font(.system(size: 11.5))
+                    .foregroundColor(t.secondary.opacity(0.7))
+            }
             Spacer()
-            if !app.searchResults.isEmpty {
+            if !app.isSearching && !app.searchResults.isEmpty {
                 Text("ranked by relevance")
                     .font(.system(size: 9.5))
                     .foregroundColor(t.secondary.opacity(0.55))
@@ -142,7 +151,12 @@ struct SearchView: View {
     @ViewBuilder
     private var results: some View {
         let t = app.theme
-        if app.searchResults.isEmpty {
+        if app.isSearching {
+            ProgressView()
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(height: 280)
+        } else if app.searchResults.isEmpty {
             EmptyState(icon: "magnifyingglass", title: "No verses found",
                        message: "Check the spelling, try fewer words, or search a different translation.",
                        theme: t)

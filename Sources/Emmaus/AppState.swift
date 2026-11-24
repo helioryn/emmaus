@@ -106,6 +106,9 @@ final class AppState: ObservableObject {
     @Published var searchScope: SearchScope = .all
     @Published var searchResults: [SearchHit] = []
     @Published var hasSearched = false
+    @Published var isSearching = false
+    /// Guards against an older query landing after a newer one.
+    private var searchToken = 0
 
     @Published var wordStudyQuery: String = ""
     @Published var wordStudyResults: [StrongsEntry] = []
@@ -451,12 +454,20 @@ final class AppState: ObservableObject {
 
     func runSearch() {
         let q = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { searchResults = []; hasSearched = false; return }
+        searchToken += 1
+        guard !q.isEmpty else {
+            searchResults = []
+            hasSearched = false
+            isSearching = false
+            return
+        }
         if let ref = ReferenceParser.parse(q), q.rangeOfCharacter(from: .decimalDigits) != nil {
+            isSearching = false
             open(book: ref.book, chapter: ref.chapter, verse: ref.verse)
             return
         }
         if q.uppercased().range(of: #"^[HG]\s*0*\d{1,5}[A-Z]?$"#, options: .regularExpression) != nil {
+            isSearching = false
             wordStudyQuery = q
             section = .wordStudy
             runWordStudy()
@@ -465,9 +476,24 @@ final class AppState: ObservableObject {
         if bible.translation(searchTranslation)?.isRemote == true {
             searchTranslation = "KJV"
         }
-        searchResults = bible.search(q, translation: searchTranslation, scope: searchScope)
+
+        // Original-language fallbacks fold a whole translation, which is too
+        // slow to do on the main thread.
+        let token = searchToken
+        let translation = searchTranslation
+        let scope = searchScope
+        isSearching = true
         hasSearched = true
         user.addSearchHistory(q)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let hits = self.bible.search(q, translation: translation, scope: scope)
+            DispatchQueue.main.async {
+                guard self.searchToken == token else { return }
+                self.searchResults = hits
+                self.isSearching = false
+                self.hasSearched = true
+            }
+        }
     }
 
     func runWordStudy() {
