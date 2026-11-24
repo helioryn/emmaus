@@ -116,25 +116,29 @@ final class AppState: ObservableObject {
     @Published var noteFocusRequest: Int = 0
     private var fetchTask: Task<Void, Never>?
 
-    init() {
-        let dbURL: URL
-        if let bundled = Bundle.main.url(forResource: "bible", withExtension: "db") {
-            dbURL = bundled
+    init(bible: BibleStore? = nil, user: UserStore? = nil) {
+        if let bible {
+            self.bible = bible
         } else {
-            dbURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-                .appendingPathComponent("Resources/bible.db")
+            let dbURL: URL
+            if let bundled = Bundle.main.url(forResource: "bible", withExtension: "db") {
+                dbURL = bundled
+            } else {
+                dbURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                    .appendingPathComponent("Resources/bible.db")
+            }
+            guard let db = try? Database(path: dbURL.path, readonly: true) else {
+                fatalError("Emmaus could not open its Bible library at \(dbURL.path)")
+            }
+            self.bible = BibleStore(db: db)
         }
-        guard let db = try? Database(path: dbURL.path, readonly: true) else {
-            fatalError("Emmaus could not open its Bible library at \(dbURL.path)")
-        }
-        bible = BibleStore(db: db)
-        user = UserStore()
+        self.user = user ?? UserStore()
         speech = SpeechService()
         api = APIBibleClient()
 
         loadSettings()
-        if bible.translation(translationCode) == nil {
-            translationCode = bible.translations.first?.code ?? "KJV"
+        if self.bible.translation(translationCode) == nil {
+            translationCode = self.bible.translations.first?.code ?? "KJV"
         }
         let current = Location(book: bookId, chapter: chapter, verse: selectedVerse)
         history = [current]

@@ -47,10 +47,17 @@ final class UserStore: ObservableObject {
     @Published private(set) var activityDays: Set<String> = []
     @Published private(set) var recentReadings: [Location] = []
 
-    init() {
-        AppPaths.ensureSupportDirectory()
+    init(path: URL? = nil) {
+        if let path {
+            try? FileManager.default.createDirectory(
+                at: path.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+        } else {
+            AppPaths.ensureSupportDirectory()
+        }
         do {
-            db = try Database(path: AppPaths.userDatabase.path, readonly: false)
+            db = try Database(path: (path ?? AppPaths.userDatabase).path, readonly: false)
         } catch {
             fatalError("Could not open personal database: \(error)")
         }
