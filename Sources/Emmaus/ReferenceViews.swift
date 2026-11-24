@@ -71,6 +71,7 @@ struct DictionaryView: View {
                     Image(systemName: "xmark.circle.fill").foregroundColor(t.secondary.opacity(0.5))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
             }
             Button("Search") { load() }
                 .buttonStyle(PrimaryButtonStyle(theme: t))
@@ -282,6 +283,7 @@ struct TopicsView: View {
                     Image(systemName: "xmark.circle.fill").foregroundColor(t.secondary.opacity(0.5))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
             }
             Button("Search") { runSearch() }
                 .buttonStyle(PrimaryButtonStyle(theme: t))

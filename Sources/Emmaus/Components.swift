@@ -124,6 +124,8 @@ struct IconButton: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .help(help)
+        .accessibilityLabel(help.isEmpty ? systemName : help)
+        .accessibilityValue(active ? "On" : "")
     }
 }
 

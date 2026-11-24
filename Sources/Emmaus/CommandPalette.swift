@@ -39,6 +39,7 @@ struct CommandPaletteView: View {
                             .foregroundColor(t.secondary.opacity(0.6))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
                 }
                 Text("esc")
                     .font(.system(size: 9, weight: .medium))

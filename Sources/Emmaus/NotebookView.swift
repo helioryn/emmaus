@@ -152,6 +152,7 @@ struct NotebookView: View {
                             }
                             .buttonStyle(.plain)
                             .help("Delete note")
+                            .accessibilityLabel("Delete note")
                         }
                         TextEditor(text: $editorText)
                             .font(Typography.reading(size: 14, serif: true))

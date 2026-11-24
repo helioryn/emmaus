@@ -206,6 +206,7 @@ struct SettingsView: View {
                             .foregroundColor(t.secondary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(showKey ? "Hide API key" : "Show API key")
                 }
                 .foregroundColor(t.ink)
                 .padding(8)
@@ -296,6 +297,7 @@ struct SettingsView: View {
                     .background(Circle().fill(t.accent))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Play pronunciation")
             Button {
                 speech.speakWord(sample, language: code, slow: true)
             } label: {

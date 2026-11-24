@@ -117,6 +117,7 @@ struct StrongsDetail: View {
                     }
                     .buttonStyle(SoftButtonStyle(theme: t))
                     .help("Hear the transliteration with an English voice")
+                    .accessibilityLabel("Hear the transliteration")
                 }
             }
             if !entry.gloss.isEmpty {

@@ -80,6 +80,7 @@ struct StudyPanel: View {
                     }
                     .buttonStyle(.plain)
                     .help("Bookmark")
+                    .accessibilityLabel(isBookmarked ? "Remove bookmark" : "Add bookmark")
                     Button {
                         app.requestNoteFocus()
                     } label: {
@@ -89,6 +90,7 @@ struct StudyPanel: View {
                     }
                     .buttonStyle(.plain)
                     .help("Add note")
+                    .accessibilityLabel("Add note")
                 }
                 Button {
                     app.showInspector = false
@@ -98,6 +100,7 @@ struct StudyPanel: View {
                         .foregroundColor(t.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Close study panel")
             }
             Text(ref)
                 .font(Typography.reading(size: 23, serif: true, weight: .semibold))
@@ -542,6 +545,7 @@ struct StudyPanel: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundColor(t.accent)
+                    .accessibilityLabel("Read interlinear aloud")
                 }
             }
             if interlinear.isEmpty {
@@ -561,6 +565,7 @@ struct StudyPanel: View {
                                     .frame(width: 16, height: 20)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Read \(w.text) aloud")
                             Text(w.text)
                                 .font(.system(size: isHebrew ? 19 : 16))
                                 .foregroundColor(t.ink)
@@ -672,6 +677,7 @@ struct StudyPanel: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(t.secondary)
+                .accessibilityLabel("Read this verse in \(tr.short) aloud")
             }
             Text(text)
                 .font(Typography.reading(size: 12.5, serif: true))
@@ -753,6 +759,8 @@ struct StudyPanel: View {
                             )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Highlight \(Palette.highlightNames[i])")
+                    .accessibilityAddTraits(user.highlight(book: app.bookId, chapter: app.chapter, verse: verse) == i ? [.isSelected] : [])
                 }
                 Button {
                     user.setHighlight(book: app.bookId, chapter: app.chapter, verse: verse, color: nil)
@@ -764,6 +772,7 @@ struct StudyPanel: View {
                         .background(Circle().fill(t.card))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Remove highlight")
             }
 
             Divider().overlay(t.border)

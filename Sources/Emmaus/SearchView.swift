@@ -58,6 +58,7 @@ struct SearchView: View {
                         .foregroundColor(t.secondary.opacity(0.55))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
             }
             Button("Search") { app.runSearch() }
                 .buttonStyle(PrimaryButtonStyle(theme: t))

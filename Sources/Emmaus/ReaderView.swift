@@ -45,6 +45,7 @@ struct ReaderView: View {
             }
             .buttonStyle(.plain)
             .help("Previous chapter (⌘←)")
+            .accessibilityLabel("Previous chapter")
 
             Button(action: app.nextChapter) {
                 Image(systemName: "chevron.right")
@@ -55,6 +56,7 @@ struct ReaderView: View {
             }
             .buttonStyle(.plain)
             .help("Next chapter (⌘→)")
+            .accessibilityLabel("Next chapter")
 
             Menu {
                 Section("Offline Library") {
@@ -501,6 +503,20 @@ struct VerseBlock: View {
         .contentShape(Rectangle())
         .onTapGesture { onSelect() }
         .contextMenu { contextMenu }
+        // One stop for VoiceOver instead of a chip per word; the word-level
+        // lookup stays available through the Study panel.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Verse \(verse.number)")
+        .accessibilityValue(verse.text)
+        .accessibilityHint("Selects this verse")
+        .accessibilityAction { onSelect() }
+        .accessibilityAction(named: "Study") { onStudy() }
+        .accessibilityAction(named: "Compare") { onCompare() }
+        .accessibilityAction(named: "Copy") { onCopy() }
+        .accessibilityAction(named: "Read aloud") { onSpeak() }
+        .accessibilityAction(named: "Bookmark") { onBookmark() }
+        .accessibilityAction(named: "Add note") { onNote() }
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
     private var background: Color {
