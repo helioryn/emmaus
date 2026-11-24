@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest something Emmaus should do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the problem before the solution. "I want X" is less useful
+        than "when I'm studying Y, I can't Z".
+
+        Features that add ads, tracking, accounts, or a paid tier will be declined —
+        see [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md#the-covenant-non-negotiable).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      placeholder: "When I'm comparing a passage across translations, I have to open each one separately…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would fix it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have tried
+      description: Other apps, workarounds, or why the obvious solution does not fit.
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where does this matter most?
+      options:
+        - macOS
+        - Android
+        - Both
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: offline
+    attributes:
+      label: Offline
+      options:
+        - label: This works without an internet connection (or degrades gracefully without one)
+          required: true

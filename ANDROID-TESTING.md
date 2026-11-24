@@ -82,9 +82,16 @@ The database comes from `../Resources/bible.db`, copied to
 python3 tools/import_free_bibles.py     # adds the eBible.org translations, idempotent
 ```
 
-Signing uses `android/emmaus-testing.jks` (alias `emmaus`, store and key password
-`emmaus-testing`). That key is only for sideloading tests — Play would use its own
-upload key, and you should never ship an app signed with a password this obvious.
+Signing uses a local keystore that is deliberately **not** in this repository
+(`android/*.jks` is ignored). For your own builds, create one:
+
+```bash
+keytool -genkeypair -keystore android/my-release.jks -alias emmaus \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Use the same key for every build you install, or Android will refuse to update over
+the previous one. Play distribution uses Play App Signing, not this key.
 
 ## Known limits in this build
 

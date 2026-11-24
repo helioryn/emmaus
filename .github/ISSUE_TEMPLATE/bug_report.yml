@@ -1,0 +1,85 @@
+name: Bug report
+description: Something is broken, wrong, or missing
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. A bug report with a reproduction
+        is worth ten without one.
+
+        **Do not report security issues here.** See [SECURITY.md](../blob/main/SECURITY.md).
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS
+        - Android
+        - Both
+        - Build scripts / database import only
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Release tag, or the output of `git rev-parse --short HEAD`
+      placeholder: "v0.1.0 / feb3856"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and OS
+      placeholder: "MacBook Pro M2, macOS 14.6 / Pixel 8, Android 15"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, starting from launch. Include the translation, book, and chapter.
+      placeholder: |
+        1. Open Emmaus
+        2. Select BSB
+        3. Go to Jonah 1
+        4. Open Romans 1
+        5. The text is still Jonah
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Screenshots or a screen recording help a lot. Drag them in.
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Does it happen in every translation? Only after switching? Only offline?
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this problem
+          required: true
+        - label: This is not a security issue
+          required: true

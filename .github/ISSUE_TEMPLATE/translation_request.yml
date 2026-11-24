@@ -1,0 +1,77 @@
+name: Translation request
+description: Propose a Bible translation to bundle
+labels: ["translation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A translation can only be bundled if its license permits redistribution and
+        its source is documented. Read
+        [Adding a Bible](../blob/main/CONTRIBUTING.md#adding-a-bible) first.
+
+        Licensed modern translations (NIV, NASB, NKJV, ESV, NLT, CSB…) are **not**
+        accepted — those stay behind each user's own API.Bible key.
+
+  - type: input
+    id: name
+    attributes:
+      label: Translation name and abbreviation
+      placeholder: "World English Bible British Edition (WEBBE)"
+    validations:
+      required: true
+
+  - type: input
+    id: language
+    attributes:
+      label: Language and year
+      placeholder: "English, 2000"
+    validations:
+      required: true
+
+  - type: input
+    id: source
+    attributes:
+      label: Source URL
+      description: The upstream download you would import from — not a mirror or a scraped site.
+    validations:
+      required: true
+
+  - type: textarea
+    id: license
+    attributes:
+      label: License statement
+      description: Paste the exact wording and link. "It's free online" is not a license.
+      placeholder: |
+        Public domain — https://ebible.org/Scriptures/translations.csv (row: engwebp)
+    validations:
+      required: true
+
+  - type: input
+    id: attribution
+    attributes:
+      label: Required attribution
+      description: The exact string the app must display, or "none required".
+
+  - type: textarea
+    id: spotchecks
+    attributes:
+      label: Spot checks
+      description: Paste these verses from the source, so the importer can be verified for correct book mapping.
+      placeholder: |
+        Genesis 1:1 —
+        Psalm 23:1 —
+        John 3:16 —
+        Romans 8:28 —
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmations
+      options:
+        - label: The license permits redistribution in a bundled app
+          required: true
+        - label: This is not a paid or royalty-bearing translation
+          required: true
+        - label: I can provide a converter script in `tools/`
