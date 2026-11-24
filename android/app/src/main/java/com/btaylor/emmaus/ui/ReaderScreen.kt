@@ -42,6 +42,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -278,6 +282,15 @@ private fun VerseRow(
                 .clip(RoundedCornerShape(8.dp))
                 .background(background)
                 .clickable(onClick = onSelect)
+                // One TalkBack stop per verse; word study stays in the study sheet.
+                .clearAndSetSemantics {
+                    contentDescription = "Verse ${verse.number}, ${verse.text}"
+                    this.selected = selected
+                    onClick(label = "Select verse") {
+                        onSelect()
+                        true
+                    }
+                }
                 .padding(horizontal = 11.dp, vertical = 7.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp)

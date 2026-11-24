@@ -48,6 +48,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -482,8 +485,10 @@ private fun NotesTab(vm: AppViewModel, verse: Int) {
 
         SectionLabel("Highlight")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            val names = listOf("amber", "rose", "sage", "sky", "lilac")
             (0..4).forEach { i ->
                 val active = vm.highlight(verse) == i
+                val name = names.getOrElse(i) { "colour" }
                 Box(
                     Modifier
                         .width(28.dp)
@@ -492,6 +497,10 @@ private fun NotesTab(vm: AppViewModel, verse: Int) {
                         .background(c.highlights.getOrElse(i) { c.accent })
                         .then(if (active) Modifier.background(c.accent.copy(alpha = 0.28f), CircleShape) else Modifier)
                         .clickable { vm.setHighlight(verse, i) }
+                        .semantics {
+                            contentDescription = "Highlight $name"
+                            this.selected = active
+                        }
                 )
             }
             Text(
