@@ -94,14 +94,21 @@ There is no formatter to argue about. Keep diffs small and readable.
 
 ### Tests
 
-The project is thin on tests, which is a known weakness. Tests that would be
-genuinely valuable:
+Every fix should come with a check that fails before it and passes after.
+
+- **macOS:** `swift test`. This needs full Xcode — XCTest and the swift-testing
+  macros are not installed with the Command Line Tools. On a CLT-only machine run
+  `bash tools/smoke.sh`, which compiles the search sources and checks them against
+  `Resources/bible.db` when it exists.
+- **Android:** `cd android && ./gradlew :app:testDebugUnitTest`.
+- CI runs both on every push.
+
+Areas still worth covering:
 
 - Chapter/navigation state (the class of bug where the header and the text
   disagree — see commit `feb3856`)
-- Verse reference parsing (`John 3:16`, `1 Cor 13:4-7`, `Ps 23`)
 - Import parsing for USFM, OSIS, and the eBible VPL format
-- Search expression building
+- Notes export and import round-trips on both platforms
 
 If you fix a bug, a regression test that fails before your fix is the best
 possible pull request.

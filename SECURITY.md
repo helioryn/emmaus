@@ -43,10 +43,11 @@ Out of scope:
   `~/Library/Application Support/Emmaus/user.db` on macOS and in app-private
   storage on Android. Nothing is uploaded.
 - **The API.Bible key**, if you add one, is stored locally — in `config.json` with
-  mode `0600` on macOS, in the app's user settings on Android. It is sent only to
+  mode `0600` on macOS, in app-private storage on Android. It is sent only to
   `rest.api.bible` over HTTPS and never logged or included in exports.
 - **Export** (JSON and Markdown) is initiated by the user and written wherever they
-  choose. It does not include the API key.
+  choose. It does not include the API key. Android cloud backup is disabled, so
+  notes and keys are not copied to a Google account.
 - There is **no telemetry, crash uploader, or analytics SDK** in the project. A pull
   request that adds one will be rejected.
 

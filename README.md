@@ -163,7 +163,7 @@ useful, not ceremonial.
 
 - [ ] Notarized macOS `.dmg` and a signed Android release with automatic updates
 - [ ] iOS app
-- [ ] Full-text search across all 41 translations on macOS (Android has it)
+- [x] Full-text search across all 41 translations on macOS
 - [ ] Opt-in, end-to-end encrypted sync (never a required account)
 - [ ] VoiceOver and TalkBack pass
 - [ ] Shrink the install: on-demand translation packs instead of one 454 MB database
@@ -184,9 +184,10 @@ first — it covers the build, the review process, and the rules that keep this
 project healthy.
 
 <a id="good-first-issues"></a>
-**Good first issues:** notarization, a macOS full-text index for the newer
-translations, Linux-friendly scripts in `tools/`, accessibility labels, and extra
-tests around navigation state.
+**Good first issues:** notarization, indexing the eBible.org translations into the
+macOS FTS table so the literal-scan fallback can be retired, Linux-friendly
+scripts in `tools/`, accessibility labels, and extra tests around navigation
+state.
 
 ## Data, licenses and attribution
 
