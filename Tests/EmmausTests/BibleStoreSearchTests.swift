@@ -7,11 +7,7 @@ final class BibleStoreSearchTests: XCTestCase {
     private var store: BibleStore?
 
     override func setUpWithError() throws {
-        let path = FileManager.default.currentDirectoryPath + "/Resources/bible.db"
-        guard FileManager.default.fileExists(atPath: path) else {
-            throw XCTSkip("Resources/bible.db is not built")
-        }
-        store = BibleStore(db: try Database(path: path, readonly: true))
+        store = BibleStore(db: try openLibraryDatabase())
     }
 
     func testFullTextTranslationReturnsPythonMarkedSnippets() throws {

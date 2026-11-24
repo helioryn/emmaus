@@ -56,7 +56,8 @@ struct Smoke {
             print("  skip no bible.db")
             finish()
         }
-        let store = BibleStore(db: try Database(path: path, readonly: true))
+        let db = try Database(path: path, readonly: true)
+        let store = BibleStore(db: db)
 
         let kjv = store.search("love", translation: "KJV")
         check("KJV finds love", !kjv.isEmpty)
@@ -89,6 +90,24 @@ struct Smoke {
             _ = store.search(query, translation: "KJV")
         }
         check("hostile queries do not crash", true)
+
+        print("Library")
+        check("no empty verses", db.scalarInt("SELECT COUNT(*) FROM verses WHERE text IS NULL OR TRIM(text) = ''") == 0)
+        check("66 books", db.scalarInt("SELECT COUNT(*) FROM books") == 66)
+        check("chapter counts match the text", db.scalarInt("""
+            SELECT COUNT(*) FROM books b
+            WHERE b.chapters != (SELECT MAX(chapter) FROM verses v WHERE v.translation = 'KJV' AND v.book = b.id)
+            """) == 0)
+        check("cross-references resolve", db.scalarInt("""
+            SELECT COUNT(*) FROM cross_refs c
+            LEFT JOIN verses v ON v.translation = 'KJV' AND v.book = c.to_book
+              AND v.chapter = c.to_chapter AND v.verse = c.to_verse_start
+            WHERE v.verse IS NULL
+            """) == 0)
+        check("Strong's occurrences resolve", db.scalarInt("""
+            SELECT COUNT(*) FROM occurrences o
+            LEFT JOIN strongs s ON s.id = o.strongs WHERE s.id IS NULL
+            """) == 0)
 
         finish()
     }
