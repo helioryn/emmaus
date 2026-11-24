@@ -83,6 +83,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var searchResults by mutableStateOf<List<SearchHit>>(emptyList())
     var searching by mutableStateOf(false)
     var hasSearched by mutableStateOf(false)
+    /** Guards against a slower earlier query landing after a newer one. */
+    private var searchGeneration = 0
 
     var wordQuery by mutableStateOf("")
     var wordResults by mutableStateOf<List<StrongsEntry>>(emptyList())
@@ -403,26 +405,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun runSearch() {
         val q = searchQuery.trim()
+        searchGeneration++
         if (q.isEmpty()) {
             searchResults = emptyList()
             hasSearched = false
+            searching = false
             return
         }
         if (q.uppercase().matches(Regex("^[HG]\\s*0*\\d{1,5}[A-Z]?$"))) {
+            searching = false
             wordQuery = q
             screen = Screen.WORD
             runWordStudy()
             return
         }
         if (parseReference(q) != null && q.any { it.isDigit() }) {
+            searching = false
             openReference(q)
             return
         }
+        val translation = translationCode
+        val generation = searchGeneration
         searching = true
+        hasSearched = true
         viewModelScope.launch {
-            searchResults = withContext(Dispatchers.IO) { bible.search(q, translationCode) }
+            val hits = withContext(Dispatchers.IO) { bible.search(q, translation) }
+            if (generation != searchGeneration) return@launch
+            searchResults = hits
             searching = false
-            hasSearched = true
         }
     }
 
