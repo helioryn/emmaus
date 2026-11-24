@@ -500,6 +500,12 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Drops an in-flight query, so its results cannot land after the field is cleared.
+    func cancelSearch() {
+        searchToken += 1
+        isSearching = false
+    }
+
     func runWordStudy() {
         let q = wordStudyQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { wordStudyResults = []; return }

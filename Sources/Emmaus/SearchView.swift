@@ -51,6 +51,7 @@ struct SearchView: View {
                     app.searchQuery = ""
                     app.hasSearched = false
                     app.searchResults = []
+                    app.cancelSearch()
                     focused = true
                 } label: {
                     Image(systemName: "xmark.circle.fill")
