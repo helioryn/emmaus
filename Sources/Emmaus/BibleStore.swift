@@ -483,7 +483,12 @@ final class BibleStore {
         sql += " ORDER BY book, chapter, verse LIMIT ?"
         params.append(max(limit, 1))
 
-        return db.rows(sql, params).map { r in
+        let rows = db.rows(sql, params)
+        if rows.isEmpty, usesDiacritics(translation) {
+            return normalizedSearch(raw, translation: translation, scope: scope, limit: limit)
+        }
+
+        return rows.map { r in
             let text = r["text"] as? String ?? ""
             return SearchHit(
                 translation: r["translation"] as? String ?? translation,
@@ -495,6 +500,81 @@ final class BibleStore {
                 score: 1
             )
         }
+    }
+
+    /// Languages whose bundled text is written with points or accents.
+    private static let diacriticLanguages: Set<String> = ["he", "grc", "el", "ar"]
+
+    private func usesDiacritics(_ code: String) -> Bool {
+        guard let lang = translation(code)?.langCode else { return false }
+        return Self.diacriticLanguages.contains(lang)
+    }
+
+    private struct PlainVerse {
+        var book: Int
+        var chapter: Int
+        var verse: Int
+        var text: String
+        var plain: String
+    }
+
+    private var plainCorpora: [String: [PlainVerse]] = [:]
+    private let plainLock = NSLock()
+
+    /// Folded verses for one translation, built once. A few megabytes at most,
+    /// and only for the languages that need it.
+    private func plainCorpus(_ code: String) -> [PlainVerse] {
+        plainLock.lock()
+        defer { plainLock.unlock() }
+        if let cached = plainCorpora[code] { return cached }
+        let corpus = db.rows(
+            "SELECT book, chapter, verse, text FROM verses WHERE translation = ? ORDER BY book, chapter, verse",
+            [code]
+        ).compactMap { r -> PlainVerse? in
+            guard let text = r["text"] as? String else { return nil }
+            return PlainVerse(
+                book: r["book"] as? Int ?? 0,
+                chapter: r["chapter"] as? Int ?? 0,
+                verse: r["verse"] as? Int ?? 0,
+                text: text,
+                plain: SearchQuery.plain(text)
+            )
+        }
+        plainCorpora[code] = corpus
+        return corpus
+    }
+
+    /// Matches an unpointed query against pointed text. Runs only when the plain
+    /// scan found nothing, and only for Hebrew, Greek and Arabic.
+    private func normalizedSearch(_ raw: String, translation: String, scope: SearchScope, limit: Int) -> [SearchHit] {
+        var needles = SearchQuery.literalTerms(raw).map(SearchQuery.plain).filter { !$0.isEmpty }
+        if needles.isEmpty {
+            let phrase = SearchQuery.plain(raw)
+            if !phrase.isEmpty { needles = [phrase] }
+        }
+        guard !needles.isEmpty else { return [] }
+
+        var hits: [SearchHit] = []
+        for verse in plainCorpus(translation) {
+            switch scope {
+            case .all: break
+            case .oldTestament: if verse.book > 39 { continue }
+            case .newTestament: if verse.book < 40 { continue }
+            case .book(let b): if verse.book != b { continue }
+            }
+            guard needles.allSatisfy({ verse.plain.contains($0) }) else { continue }
+            hits.append(SearchHit(
+                translation: translation,
+                book: verse.book,
+                chapter: verse.chapter,
+                verse: verse.verse,
+                text: verse.text,
+                snippet: verse.text,
+                score: 1
+            ))
+            if hits.count >= limit { break }
+        }
+        return hits
     }
 
     private static func escapeLike(_ term: String) -> String {

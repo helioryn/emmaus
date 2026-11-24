@@ -37,6 +37,24 @@ final class BibleStoreSearchTests: XCTestCase {
         XCTAssertFalse(hits.isEmpty, "CJK literal fallback returned nothing")
     }
 
+    func testHebrewSearchIgnoresPoints() throws {
+        let store = try XCTUnwrap(store)
+        let hits = store.search("אלהים", translation: "HEB")
+        XCTAssertFalse(hits.isEmpty, "unpointed Hebrew query returned nothing")
+        XCTAssertTrue(hits.allSatisfy { $0.translation == "HEB" })
+    }
+
+    func testGreekSearchIgnoresAccents() throws {
+        let store = try XCTUnwrap(store)
+        let hits = store.search("θεος", translation: "GRK")
+        XCTAssertFalse(hits.isEmpty, "unaccented Greek query returned nothing")
+    }
+
+    func testGreekAccentedQueryStillWorks() throws {
+        let store = try XCTUnwrap(store)
+        XCTAssertFalse(store.search("ἀγάπη", translation: "GRK").isEmpty)
+    }
+
     func testScopeLimitsResults() throws {
         let store = try XCTUnwrap(store)
         let psalmHits = store.search("shepherd", translation: "KJV", scope: .book(19))

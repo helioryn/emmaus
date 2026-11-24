@@ -70,6 +70,17 @@ struct Smoke {
         let chinese = store.search("神", translation: "CUVS")
         check("CUVS fallback finds 神", !chinese.isEmpty)
 
+        check("plain folds Hebrew points", SearchQuery.plain("בְּרֵאשִׁ֖ית") == "בראשית")
+        check("plain folds Greek accents", SearchQuery.plain("ἀγάπη") == "αγαπη")
+        check("plain folds final sigma", SearchQuery.plain("θεὸς") == "θεοσ")
+
+        let hebrew = store.search("אלהים", translation: "HEB")
+        check("HEB unpointed finds אלהים", !hebrew.isEmpty)
+        let greek = store.search("θεος", translation: "GRK")
+        check("GRK unaccented finds θεος", !greek.isEmpty)
+        let greekBook = store.search("λογος", translation: "GRK", scope: .book(43))
+        check("GRK scope holds", !greekBook.isEmpty && greekBook.allSatisfy { $0.book == 43 })
+
         let psalms = store.search("shepherd", translation: "KJV", scope: .book(19))
         check("scope limits to Psalms", !psalms.isEmpty && psalms.allSatisfy { $0.book == 19 })
 

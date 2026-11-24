@@ -82,4 +82,17 @@ final class SearchQueryTests: XCTestCase {
         XCTAssertEqual(SearchQuery.sanitize("ἀγάπη", allowSpaces: false), "ἀγάπη")
         XCTAssertEqual(SearchQuery.sanitize("??", allowSpaces: false), nil)
     }
+
+    func testPlainFoldsHebrewPoints() {
+        XCTAssertEqual(SearchQuery.plain("בְּרֵאשִׁ֖ית אֱלֹהִ֑ים"), "בראשית אלהים")
+    }
+
+    func testPlainFoldsGreekAccentsAndFinalSigma() {
+        XCTAssertEqual(SearchQuery.plain("Ἐν ἀρχῇ"), "εν αρχη")
+        XCTAssertEqual(SearchQuery.plain("θεὸς"), "θεοσ")
+    }
+
+    func testPlainDropsPunctuationButKeepsSpaces() {
+        XCTAssertEqual(SearchQuery.plain("λόγος, καὶ"), "λογοσ και")
+    }
 }

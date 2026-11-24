@@ -159,4 +159,28 @@ enum SearchQuery {
             }
         }
     }
+
+    /// Letters only, lowercased, with marks and punctuation removed.
+    ///
+    /// The original-language texts carry points and accents — Hebrew niqqud,
+    /// polytonic Greek breathings, Arabic harakat — so a query typed without
+    /// them has to be matched against a folded copy of the verse.
+    static func plain(_ text: String) -> String {
+        var out = String.UnicodeScalarView()
+        out.reserveCapacity(text.unicodeScalars.count)
+        for scalar in text.decomposedStringWithCanonicalMapping.lowercased().unicodeScalars {
+            switch scalar.properties.generalCategory {
+            case .nonspacingMark, .spacingMark, .enclosingMark, .format:
+                continue
+            case .spaceSeparator:
+                out.append(" ")
+            case .decimalNumber, .letterNumber, .otherNumber,
+                 .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter:
+                out.append(scalar == "\u{03C2}" ? "\u{03C3}" : scalar)
+            default:
+                continue
+            }
+        }
+        return String(out)
+    }
 }
