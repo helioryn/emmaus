@@ -250,7 +250,8 @@ class UserStore(context: Context) {
         root.put("noteTimes", JSONObject(noteTimes.toMap() as Map<*, *>))
         root.put("highlights", JSONObject(highlights.toMap() as Map<*, *>))
         root.put("bookmarks", JSONObject(bookmarks.toMap() as Map<*, *>))
-        root.put("settings", JSONObject(settings.toMap() as Map<*, *>))
+        // Never export the API key (or anything else secret-shaped).
+        root.put("settings", JSONObject(exportableSettings(settings) as Map<*, *>))
         root.put("history", JSONObject(history.toMap() as Map<*, *>))
         root.put("activityDays", JSONObject(activityDays.toMap() as Map<*, *>))
         return root.toString(2)
@@ -280,5 +281,14 @@ class UserStore(context: Context) {
             save()
         } catch (_: Exception) {
         }
+    }
+
+    companion object {
+        /** Settings that are safe to export: everything except credentials. */
+        fun exportableSettings(settings: Map<String, String>): Map<String, String> =
+            settings.filterKeys { key ->
+                val normalized = key.lowercase().filter { it.isLetterOrDigit() }
+                listOf("apikey", "secret", "token", "password").none { normalized.contains(it) }
+            }
     }
 }

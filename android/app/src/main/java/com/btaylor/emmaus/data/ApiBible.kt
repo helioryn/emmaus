@@ -47,6 +47,8 @@ class ApiBible(private val context: Context) {
         )
         val conn = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
+            // Credentials go in this request; do not let it follow redirects.
+            instanceFollowRedirects = false
             setRequestProperty("api-key", key)
             setRequestProperty("Accept", "application/json")
             connectTimeout = 20_000
@@ -87,6 +89,7 @@ class ApiBible(private val context: Context) {
         val url = URL("https://rest.api.bible/v1/bibles?language=eng")
         val conn = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
+            instanceFollowRedirects = false
             setRequestProperty("api-key", key)
             connectTimeout = 15_000
             readTimeout = 20_000
