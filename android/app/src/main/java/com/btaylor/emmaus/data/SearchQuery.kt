@@ -1,5 +1,7 @@
 package com.btaylor.emmaus.data
 
+import java.text.Normalizer
+
 /**
  * Turns typed text into a safe FTS4 MATCH expression.
  *
@@ -152,5 +154,36 @@ object SearchQuery {
             is Token.Phrase -> null
             is Token.Op -> null
         }
+    }
+
+    /**
+     * Letters only, lowercased, with marks and punctuation removed.
+     *
+     * The original-language texts carry points and accents, so a query typed
+     * without them is matched against this folded form instead.
+     */
+    fun plain(raw: String): String {
+        val decomposed = Normalizer.normalize(raw, Normalizer.Form.NFD).lowercase()
+        val out = StringBuilder(decomposed.length)
+        for (ch in decomposed) {
+            when (Character.getType(ch)) {
+                Character.NON_SPACING_MARK.toInt(),
+                Character.COMBINING_SPACING_MARK.toInt(),
+                Character.ENCLOSING_MARK.toInt(),
+                Character.FORMAT.toInt() -> Unit
+                Character.SPACE_SEPARATOR.toInt() -> out.append(' ')
+                Character.DECIMAL_DIGIT_NUMBER.toInt(),
+                Character.LETTER_NUMBER.toInt(),
+                Character.OTHER_NUMBER.toInt(),
+                Character.UPPERCASE_LETTER.toInt(),
+                Character.LOWERCASE_LETTER.toInt(),
+                Character.TITLECASE_LETTER.toInt(),
+                Character.MODIFIER_LETTER.toInt(),
+                Character.OTHER_LETTER.toInt() ->
+                    out.append(if (ch == '\u03C2') '\u03C3' else ch)
+                else -> Unit
+            }
+        }
+        return out.toString()
     }
 }

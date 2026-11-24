@@ -345,6 +345,77 @@ class BibleDb(private val context: Context) {
                 )
             }
         }
+        if (out.isEmpty() && usesDiacritics(translation)) {
+            return normalizedSearch(raw, translation, limit)
+        }
+        return out
+    }
+
+    /** Languages whose bundled text is written with points or accents. */
+    private val diacriticLanguages = setOf("he", "grc", "el", "ar")
+
+    private fun usesDiacritics(code: String): Boolean =
+        translation(code)?.langCode in diacriticLanguages
+
+    private data class PlainVerse(
+        val book: Int,
+        val chapter: Int,
+        val verse: Int,
+        val text: String,
+        val plain: String
+    )
+
+    private val plainCorpora = HashMap<String, List<PlainVerse>>()
+
+    /** Folded verses for one translation, built once and kept in memory. */
+    @Synchronized
+    private fun plainCorpus(code: String): List<PlainVerse> {
+        plainCorpora[code]?.let { return it }
+        val out = ArrayList<PlainVerse>()
+        db.rawQuery(
+            "SELECT book,chapter,verse,text FROM verses WHERE translation=? ORDER BY book,chapter,verse",
+            arrayOf(code)
+        ).use { c ->
+            while (c.moveToNext()) {
+                val text = c.getString(3) ?: ""
+                out += PlainVerse(
+                    book = c.getInt(0),
+                    chapter = c.getInt(1),
+                    verse = c.getInt(2),
+                    text = text,
+                    plain = SearchQuery.plain(text)
+                )
+            }
+        }
+        plainCorpora[code] = out
+        return out
+    }
+
+    /** Matches an unpointed query against pointed Hebrew, Greek or Arabic. */
+    private fun normalizedSearch(raw: String, translation: String, limit: Int): List<SearchHit> {
+        var needles = SearchQuery.literalTerms(raw)
+            .map { SearchQuery.plain(it) }
+            .filter { it.isNotEmpty() }
+        if (needles.isEmpty()) {
+            val phrase = SearchQuery.plain(raw)
+            if (phrase.isNotEmpty()) needles = listOf(phrase)
+        }
+        if (needles.isEmpty()) return emptyList()
+
+        val out = mutableListOf<SearchHit>()
+        for (verse in plainCorpus(translation)) {
+            if (needles.all { verse.plain.contains(it) }) {
+                out += SearchHit(
+                    book = verse.book,
+                    chapter = verse.chapter,
+                    verse = verse.verse,
+                    text = verse.text,
+                    snippet = verse.text,
+                    score = 1.0
+                )
+                if (out.size >= limit) break
+            }
+        }
         return out
     }
 

@@ -85,4 +85,20 @@ class SearchQueryTest {
         assertEquals("神", SearchQuery.sanitize("神", allowSpaces = false))
         assertNull(SearchQuery.sanitize("??", allowSpaces = false))
     }
+
+    @Test
+    fun plainFoldsHebrewPoints() {
+        assertEquals("בראשית אלהים", SearchQuery.plain("בְּרֵאשִׁ֖ית אֱלֹהִ֑ים"))
+    }
+
+    @Test
+    fun plainFoldsGreekAccentsAndFinalSigma() {
+        assertEquals("εν αρχη", SearchQuery.plain("Ἐν ἀρχῇ"))
+        assertEquals("θεοσ", SearchQuery.plain("θεὸς"))
+    }
+
+    @Test
+    fun plainDropsPunctuationButKeepsSpaces() {
+        assertEquals("λογοσ και", SearchQuery.plain("λόγος, καὶ"))
+    }
 }
