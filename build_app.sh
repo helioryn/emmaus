@@ -2,7 +2,9 @@
 # Build Emmaus.app.
 #
 #   bash build_app.sh            # full build, bundles Resources/bible.db
-#   bash build_app.sh --no-db    # build without the library (CI, UI work)
+#   bash build_app.sh --no-db    # build without the library (CI, UI work);
+#                                # written to dist/Emmaus-nodb.app so it cannot
+#                                # shadow a runnable copy in dist/ or the Dock
 #   EMMAUS_SDK=/path/to/SDK.sdk bash build_app.sh   # force an SDK
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -53,25 +55,35 @@ fi
 SDKROOT="$SDK" swift build -c release
 
 APP="dist/Emmaus.app"
+BUNDLE_ID="com.btaylor.emmaus"
+DISPLAY_NAME="Emmaus"
+if [ "$NO_DB" = "1" ]; then
+  # A build without the library cannot start. Keep it out of the path people
+  # launch, and give it its own identifier so LaunchServices never picks it
+  # when the Dock asks for the real app.
+  APP="dist/Emmaus-nodb.app"
+  BUNDLE_ID="com.btaylor.emmaus.nodb"
+  DISPLAY_NAME="Emmaus (no library)"
+fi
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 rm -f "$APP/Contents/Resources/bible.db"
 cp .build/release/Emmaus "$APP/Contents/MacOS/Emmaus"
 if [ "$NO_DB" = "1" ]; then
-  echo "Skipping bible.db (--no-db). The app will not start without it."
+  echo "Skipping bible.db (--no-db). This build is for inspection only."
 else
   cp Resources/bible.db "$APP/Contents/Resources/bible.db"
 fi
 
 if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"; fi
 
-cat > "$APP/Contents/Info.plist" <<'PLIST'
+cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Emmaus</string>
-  <key>CFBundleDisplayName</key><string>Emmaus</string>
-  <key>CFBundleIdentifier</key><string>com.btaylor.emmaus</string>
+  <key>CFBundleName</key><string>${DISPLAY_NAME}</string>
+  <key>CFBundleDisplayName</key><string>${DISPLAY_NAME}</string>
+  <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
   <key>CFBundleExecutable</key><string>Emmaus</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>

@@ -30,8 +30,8 @@ jobs:
 
       - name: Verify the bundle
         run: |
-          test -x "dist/Emmaus.app/Contents/MacOS/Emmaus"
-          plutil -lint "dist/Emmaus.app/Contents/Info.plist"
+          test -x "dist/Emmaus-nodb.app/Contents/MacOS/Emmaus"
+          plutil -lint "dist/Emmaus-nodb.app/Contents/Info.plist"
 
   android:
     name: Android build
