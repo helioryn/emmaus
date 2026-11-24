@@ -381,8 +381,44 @@ final class BibleStore {
 
     // MARK: - Search
 
+    /// Which translations live in the FTS index, discovered once each.
+    private var indexedTranslations: [String: Bool] = [:]
+    /// Guards `indexedTranslations`; searches can arrive from a background task.
+    private let indexLock = NSLock()
+
     func search(_ raw: String, translation: String, scope: SearchScope = .all, limit: Int = 200) -> [SearchHit] {
-        let expr = ftsExpression(raw)
+        let query = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+
+        if isIndexed(translation) {
+            let hits = fullTextSearch(query, translation: translation, scope: scope)
+            if !hits.isEmpty { return Array(hits.prefix(limit)) }
+            return []
+        }
+
+        // Translations imported from eBible.org are not tokenised into the FTS
+        // index. Scan their verses directly instead of returning nothing.
+        return literalSearch(query, translation: translation, scope: scope, limit: limit)
+    }
+
+    private func isIndexed(_ translation: String) -> Bool {
+        indexLock.lock()
+        if let cached = indexedTranslations[translation] {
+            indexLock.unlock()
+            return cached
+        }
+        indexLock.unlock()
+
+        let found = !db.rows("SELECT 1 FROM search WHERE translation = ? LIMIT 1", [translation]).isEmpty
+
+        indexLock.lock()
+        indexedTranslations[translation] = found
+        indexLock.unlock()
+        return found
+    }
+
+    private func fullTextSearch(_ raw: String, translation: String, scope: SearchScope) -> [SearchHit] {
+        let expr = SearchQuery.ftsExpression(raw)
         guard !expr.isEmpty else { return [] }
         var sql = """
             SELECT translation, book, chapter, verse, text,
@@ -419,27 +455,79 @@ final class BibleStore {
             if $0.book != $1.book { return $0.book < $1.book }
             if $0.chapter != $1.chapter { return $0.chapter < $1.chapter }
             return $0.verse < $1.verse
-        }.prefix(limit).map { $0 }
+        }
     }
 
-    private func ftsExpression(_ raw: String) -> String {
-        let q = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return "" }
-        if q.hasPrefix("\"") && q.hasSuffix("\"") && q.count > 2 { return q }
-        var terms = q.split(whereSeparator: { $0.isWhitespace }).map(String.init)
-        guard !terms.isEmpty else { return "" }
-        let cleaned = terms.map { $0.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: "'", with: " ") }
-            .filter { !$0.isEmpty }
-        guard !cleaned.isEmpty else { return "" }
-        var parts: [String] = []
-        for (i, t) in cleaned.enumerated() {
-            if i == cleaned.count - 1 && t.count >= 2 {
-                parts.append("\"\(t)\"*")
-            } else {
-                parts.append("\"\(t)\"")
-            }
+    /// Plain substring search for translations the FTS index does not cover.
+    /// The verses table is keyed by translation, so this stays a narrow scan.
+    private func literalSearch(_ raw: String, translation: String, scope: SearchScope, limit: Int) -> [SearchHit] {
+        var terms = SearchQuery.literalTerms(raw)
+        if terms.isEmpty,
+           let phrase = SearchQuery.sanitize(raw, allowSpaces: true) {
+            terms = [phrase]
         }
-        return parts.joined(separator: " AND ")
+        guard !terms.isEmpty else { return [] }
+
+        var sql = "SELECT translation, book, chapter, verse, text FROM verses WHERE translation = ?"
+        var params: [Any?] = [translation]
+        for term in terms.prefix(8) {
+            sql += " AND text LIKE ? ESCAPE '\\'"
+            params.append("%\(Self.escapeLike(term))%")
+        }
+        switch scope {
+        case .all: break
+        case .oldTestament: sql += " AND book <= 39"
+        case .newTestament: sql += " AND book >= 40"
+        case .book(let b): sql += " AND book = ?"; params.append(b)
+        }
+        sql += " ORDER BY book, chapter, verse LIMIT ?"
+        params.append(max(limit, 1))
+
+        return db.rows(sql, params).map { r in
+            let text = r["text"] as? String ?? ""
+            return SearchHit(
+                translation: r["translation"] as? String ?? translation,
+                book: r["book"] as? Int ?? 1,
+                chapter: r["chapter"] as? Int ?? 1,
+                verse: r["verse"] as? Int ?? 1,
+                text: text,
+                snippet: Self.highlight(text, terms: terms),
+                score: 1
+            )
+        }
+    }
+
+    private static func escapeLike(_ term: String) -> String {
+        term.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_")
+    }
+
+    private static func highlight(_ text: String, terms: [String]) -> String {
+        var marked = text
+        for term in terms where !term.isEmpty {
+            marked = markOccurrences(of: term, in: marked)
+        }
+        return marked
+    }
+
+    private static func markOccurrences(of term: String, in text: String) -> String {
+        guard let regex = try? NSRegularExpression(
+            pattern: NSRegularExpression.escapedPattern(for: term),
+            options: [.caseInsensitive]
+        ) else { return text }
+        let ns = text as NSString
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length))
+        guard !matches.isEmpty else { return text }
+        var out = ""
+        var cursor = 0
+        for match in matches where match.range.location >= cursor {
+            out += ns.substring(with: NSRange(location: cursor, length: match.range.location - cursor))
+            out += "⟦" + ns.substring(with: match.range) + "⟧"
+            cursor = match.range.location + match.range.length
+        }
+        out += ns.substring(from: cursor)
+        return out
     }
 
     private static func score(matchInfo: Data?, textLength: Int) -> Double {

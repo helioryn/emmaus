@@ -9,6 +9,12 @@ let package = Package(
             name: "Emmaus",
             path: "Sources/Emmaus",
             linkerSettings: [.linkedLibrary("sqlite3")]
+        ),
+        .testTarget(
+            name: "EmmausTests",
+            dependencies: ["Emmaus"],
+            path: "Tests/EmmausTests",
+            linkerSettings: [.linkedLibrary("sqlite3")]
         )
     ]
 )
