@@ -132,7 +132,7 @@ private fun SearchTips(vm: AppViewModel) {
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            "Quotes search an exact phrase. A Strong's number jumps to the lexicon. A reference like John 3:16 jumps straight to the verse.",
+            "Quotes search an exact phrase. A Strong's number jumps to the lexicon. A reference like John 3:16 jumps straight to the verse. Hebrew points and Greek accents are optional.",
             color = c.muted,
             fontSize = 10.sp,
             lineHeight = 15.sp

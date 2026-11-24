@@ -213,6 +213,7 @@ struct SearchView: View {
                 SectionLabel(text: "Tips", theme: t)
                 tip("Use quotes for an exact phrase", "“the Lord is my shepherd”")
                 tip("Put an asterisk after a stem", "lov* finds love, loved, loving")
+                tip("Points and accents are optional", "אלהים finds אֱלֹהִים")
                 tip("Combine words with AND / OR", "faith AND works")
                 tip("Search a Strong's number", "G26 or H430")
             }
