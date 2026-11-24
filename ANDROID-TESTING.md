@@ -75,8 +75,14 @@ $BT/apksigner sign --ks emmaus-testing.jks --ks-key-alias emmaus \
   --out ../dist/Emmaus-android-test.apk /tmp/emmaus-aligned.apk
 ```
 
-The database comes from `../Resources/bible.db`, copied to
-`android/app/src/main/assets/bible.db`. Regenerate it with:
+The database comes from `../Resources/bible.db`. One command copies it into the app
+and verifies it:
+
+```bash
+./sync_assets.sh            # add --fetch to build the database if it is missing
+```
+
+Regenerate the translations themselves with:
 
 ```bash
 python3 tools/import_free_bibles.py     # adds the eBible.org translations, idempotent

@@ -1,14 +1,67 @@
 #!/bin/bash
+# Build Emmaus.app.
+#
+#   bash build_app.sh            # full build, bundles Resources/bible.db
+#   bash build_app.sh --no-db    # build without the library (CI, UI work)
+#   EMMAUS_SDK=/path/to/SDK.sdk bash build_app.sh   # force an SDK
 set -euo pipefail
 cd "$(dirname "$0")"
 
-SDK="/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+NO_DB=0
+for arg in "$@"; do
+  case "$arg" in
+    --no-db) NO_DB=1 ;;
+    *) echo "unknown option: $arg" >&2; exit 2 ;;
+  esac
+done
+
+# Pick an SDK that can actually expand SwiftUI's macros. On a CLT-only machine
+# the newest installed SDK can ship a SwiftUI whose macros the installed
+# toolchain cannot load ("plugin for module 'SwiftUIMacros' not found"), so probe
+# each candidate with a tiny typecheck instead of guessing.
+usable_sdk() {
+  local sdk="$1" dir probe
+  dir="$(mktemp -d)"
+  probe="$dir/probe.swift"
+  printf 'import SwiftUI\nstruct P: View { @State var x = 0\n var body: some View { Text("\\(x)") } }\n' > "$probe"
+  if swiftc -typecheck -sdk "$sdk" "$probe" >/dev/null 2>&1; then rm -rf "$dir"; return 0; fi
+  rm -rf "$dir"
+  return 1
+}
+
+SDK="${EMMAUS_SDK:-}"
+if [ -n "$SDK" ]; then
+  [ -d "$SDK" ] || { echo "EMMAUS_SDK not found: $SDK" >&2; exit 1; }
+  echo "Using SDK (forced): $SDK"
+else
+  candidates=()
+  if [ "$(xcode-select -p)" = "/Library/Developer/CommandLineTools" ]; then
+    while IFS= read -r s; do candidates+=("$s"); done < <(
+      ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk 2>/dev/null \
+        | grep -v '/MacOSX\.sdk$' | sort -Vr
+    )
+  fi
+  candidates+=("$(xcrun --sdk macosx --show-sdk-path)")
+
+  for s in "${candidates[@]}"; do
+    if usable_sdk "$s"; then SDK="$s"; break; fi
+    echo "Skipping SDK (SwiftUI macros unavailable): $s"
+  done
+  [ -n "${SDK:-}" ] || { echo "No usable macOS SDK found. Set EMMAUS_SDK." >&2; exit 1; }
+  echo "Using SDK: $SDK"
+fi
 SDKROOT="$SDK" swift build -c release
 
 APP="dist/Emmaus.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+rm -f "$APP/Contents/Resources/bible.db"
 cp .build/release/Emmaus "$APP/Contents/MacOS/Emmaus"
-cp Resources/bible.db "$APP/Contents/Resources/bible.db"
+if [ "$NO_DB" = "1" ]; then
+  echo "Skipping bible.db (--no-db). The app will not start without it."
+else
+  cp Resources/bible.db "$APP/Contents/Resources/bible.db"
+fi
+
 if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"; fi
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'

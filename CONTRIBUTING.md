@@ -64,7 +64,7 @@ SDK; if your Xcode/Command Line Tools version differs from `SDK` in
 ### Android
 
 ```bash
-cp Resources/bible.db android/app/src/main/assets/bible.db
+./sync_assets.sh          # copies Resources/bible.db into the app and verifies it
 cd android
 ./gradlew :app:assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk

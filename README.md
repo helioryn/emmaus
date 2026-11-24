@@ -128,15 +128,19 @@ bash build_app.sh          # macOS: produces dist/Emmaus.app
 open dist/Emmaus.app
 ```
 
-macOS needs the Xcode Command Line Tools and macOS 14+. The build script targets
-the installed SDK; adjust `SDK` in `build_app.sh` if yours differs.
+macOS needs the Xcode Command Line Tools and macOS 14+. The build script probes
+the installed SDKs and picks one whose SwiftUI macros the toolchain can load; set
+`EMMAUS_SDK=/path/to/SDK.sdk` to force one.
 
-For Android, copy the database into the app, then build:
+For Android, one command copies the library into the app and verifies it:
 
 ```bash
-cp Resources/bible.db android/app/src/main/assets/bible.db
+./sync_assets.sh
 cd android && ./gradlew :app:assembleDebug
 ```
+
+`./sync_assets.sh --fetch` will also build the database from scratch if you don't
+have it yet.
 
 See [ANDROID-TESTING.md](ANDROID-TESTING.md) for signing and installing a release
 build.
