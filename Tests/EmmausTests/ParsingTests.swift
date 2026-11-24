@@ -35,6 +35,13 @@ final class ReferenceParserTests: XCTestCase {
         XCTAssertEqual(ref?.verse, 1)
     }
 
+    func testCompactReferenceWithPeriodSeparator() {
+        let ref = ReferenceParser.parse("Gen.1:1")
+        XCTAssertEqual(ref?.book, 1)
+        XCTAssertEqual(ref?.chapter, 1)
+        XCTAssertEqual(ref?.verse, 1)
+    }
+
     func testNonReferenceIsNil() {
         XCTAssertNil(ReferenceParser.parse("love"))
         XCTAssertNil(ReferenceParser.parse(""))

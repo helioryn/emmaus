@@ -221,7 +221,7 @@ enum ReferenceParser {
     static func parse(_ input: String) -> (book: Int, chapter: Int, verse: Int?)? {
         var s = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         s = s.replacingOccurrences(of: "  ", with: " ")
-        let pattern = #"^([1-3]?\s*[a-z][a-z ]*?)\s*(\d+)(?:\s*[:.]\s*(\d+))?"#
+        let pattern = #"^([1-3]?\s*[a-z][a-z .]*?)\s*(\d+)(?:\s*[:.]\s*(\d+))?"#
         guard let re = try? NSRegularExpression(pattern: pattern),
               let m = re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)) else { return nil }
         func group(_ i: Int) -> String? {
@@ -230,7 +230,8 @@ enum ReferenceParser {
         }
         guard let rawBook = group(1)?.trimmingCharacters(in: .whitespaces),
               let chStr = group(2), let chapter = Int(chStr) else { return nil }
-        var name = rawBook
+        // "Gen." and "1 Cor." are abbreviations, not part of the name.
+        var name = rawBook.replacingOccurrences(of: ".", with: "")
         // numeric prefix without space: "1john"
         if let first = name.first, "123".contains(first), !name.contains(" ") {
             name = String(first) + " " + name.dropFirst()
