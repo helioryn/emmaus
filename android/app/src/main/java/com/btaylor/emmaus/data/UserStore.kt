@@ -17,6 +17,8 @@ class UserStore(context: Context) {
     val settings = mutableStateMapOf<String, String>()
     val history = mutableStateMapOf<String, Long>()
     val activityDays = mutableStateMapOf<String, Long>()
+    /** Completed plan days, keyed "planId:day". */
+    val planDays = mutableStateMapOf<String, Long>()
 
     init {
         load()
@@ -62,6 +64,9 @@ class UserStore(context: Context) {
             root.optJSONObject("activityDays")?.let { o ->
                 o.keys().forEach { k -> activityDays[k] = o.optLong(k) }
             }
+            root.optJSONObject("planDays")?.let { o ->
+                o.keys().forEach { k -> planDays[k] = o.optLong(k) }
+            }
         } catch (_: Exception) {
         }
     }
@@ -77,6 +82,7 @@ class UserStore(context: Context) {
                 root.put("settings", JSONObject(settings.toMap() as Map<*, *>))
                 root.put("history", JSONObject(history.toMap() as Map<*, *>))
                 root.put("activityDays", JSONObject(activityDays.toMap() as Map<*, *>))
+                root.put("planDays", JSONObject(planDays.toMap() as Map<*, *>))
                 file.writeText(root.toString())
             } catch (_: Exception) {
             }
@@ -254,6 +260,7 @@ class UserStore(context: Context) {
         root.put("settings", JSONObject(exportableSettings(settings) as Map<*, *>))
         root.put("history", JSONObject(history.toMap() as Map<*, *>))
         root.put("activityDays", JSONObject(activityDays.toMap() as Map<*, *>))
+        root.put("planDays", JSONObject(planDays.toMap() as Map<*, *>))
         return root.toString(2)
     }
 
@@ -278,10 +285,28 @@ class UserStore(context: Context) {
             root.optJSONObject("activityDays")?.let { o ->
                 o.keys().forEach { k -> activityDays[k] = o.optLong(k) }
             }
+            root.optJSONObject("planDays")?.let { o ->
+                o.keys().forEach { k -> planDays[k] = o.optLong(k) }
+            }
             save()
         } catch (_: Exception) {
         }
     }
+
+    // Reading plans
+
+    private fun planDayKey(plan: String, day: Int) = "$plan:$day"
+
+    fun isPlanDayDone(plan: String, day: Int): Boolean = planDays[planDayKey(plan, day)] != null
+
+    fun setPlanDay(plan: String, day: Int, done: Boolean) {
+        val key = planDayKey(plan, day)
+        if (done) planDays[key] = System.currentTimeMillis() else planDays.remove(key)
+        save()
+    }
+
+    fun completedPlanDays(plan: String): Int =
+        planDays.keys.count { it.startsWith("$plan:") }
 
     companion object {
         /** Settings that are safe to export: everything except credentials. */

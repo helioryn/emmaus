@@ -17,7 +17,11 @@ import com.btaylor.emmaus.data.CommentaryEntry
 import com.btaylor.emmaus.data.CrossRef
 import com.btaylor.emmaus.data.DailyVerse
 import com.btaylor.emmaus.data.InterlinearWord
+import com.btaylor.emmaus.data.PlanDay
+import com.btaylor.emmaus.data.PlanDefinition
+import com.btaylor.emmaus.data.PlanLibrary
 import com.btaylor.emmaus.data.ReadingLocation
+import com.btaylor.emmaus.data.ReadingPlan
 import com.btaylor.emmaus.data.SearchHit
 import com.btaylor.emmaus.data.StrongsEntry
 import com.btaylor.emmaus.data.Translation
@@ -31,7 +35,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
-enum class Screen { HOME, READ, SEARCH, WORD, NOTEBOOK }
+enum class Screen { HOME, READ, SEARCH, WORD, NOTEBOOK, PLANS }
 enum class SheetTab(val label: String) {
     STUDY("Study"), WORD("Word"), ORIGINAL("Original"), COMPARE("Compare"), NOTES("Notes")
 }
@@ -78,6 +82,38 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var interlinear by mutableStateOf<List<InterlinearWord>>(emptyList())
     var studyWords by mutableStateOf<List<StrongsEntry>>(emptyList())
     var selectedWork by mutableStateOf("tyndale")
+
+    // Reading plans
+
+    /** Which plan the Plans screen is showing; null means the list. */
+    var openPlanId by mutableStateOf<String?>(null)
+    var activePlanId by mutableStateOf(user.setting("activePlan", "bible-year"))
+        private set
+    private val planCache = mutableMapOf<String, ReadingPlan>()
+
+    fun readingPlan(definition: PlanDefinition): ReadingPlan =
+        planCache.getOrPut(definition.id) { PlanLibrary.plan(definition, bible.books) }
+
+    fun planCompleted(definition: PlanDefinition): Int = user.completedPlanDays(definition.id)
+
+    fun currentPlanDay(definition: PlanDefinition): PlanDay? {
+        val plan = readingPlan(definition)
+        return plan.days.firstOrNull { !user.isPlanDayDone(definition.id, it.day) }
+    }
+
+    fun togglePlanDay(definition: PlanDefinition, day: Int) {
+        user.setPlanDay(definition.id, day, !user.isPlanDayDone(definition.id, day))
+    }
+
+    fun selectPlan(definition: PlanDefinition) {
+        activePlanId = definition.id
+        user.setSetting("activePlan", definition.id)
+    }
+
+    fun openPlanDay(day: PlanDay) {
+        val first = day.readings.firstOrNull() ?: return
+        open(first.book, first.chapter)
+    }
 
     var searchQuery by mutableStateOf("")
     var searchResults by mutableStateOf<List<SearchHit>>(emptyList())

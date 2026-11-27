@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +42,7 @@ import com.btaylor.emmaus.AppViewModel
 import com.btaylor.emmaus.Screen
 import com.btaylor.emmaus.data.Book
 import com.btaylor.emmaus.data.BookNote
+import com.btaylor.emmaus.data.PlanLibrary
 import com.btaylor.emmaus.data.ReadingLocation
 import com.btaylor.emmaus.data.refLabel
 import java.text.SimpleDateFormat
@@ -105,6 +107,8 @@ fun HomeScreen(vm: AppViewModel) {
                     bookmarks = vm.user.bookmarks.size
                 )
             }
+
+            item { HomePlanCard(vm) }
 
             if (recentReads.isNotEmpty()) {
                 item {
@@ -414,6 +418,56 @@ private fun RecentNotesCard(vm: AppViewModel, notes: List<BookNote>) {
                     )
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+private fun HomePlanCard(vm: AppViewModel) {
+    val c = Emmaus.colors
+    val definition = PlanLibrary.definition(vm.activePlanId) ?: PlanLibrary.definitions.first()
+    val completed = vm.planCompleted(definition)
+    val next = vm.currentPlanDay(definition)
+    val fraction = if (definition.days == 0) 0f else completed.toFloat() / definition.days
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(c.surface)
+            .border(0.6.dp, c.border, RoundedCornerShape(12.dp))
+            .clickable {
+                vm.selectPlan(definition)
+                vm.openPlanId = definition.id
+                vm.screen = Screen.PLANS
+            }
+            .padding(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel("Reading plan")
+            Spacer(Modifier.weight(1f))
+            Text("$completed / ${definition.days} days", color = c.muted, fontSize = 9.5.sp)
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(definition.name, color = c.ink, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(8.dp))
+        LinearProgressIndicator(
+            progress = { fraction },
+            modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)),
+            color = c.accent,
+            trackColor = c.border.copy(alpha = 0.6f)
+        )
+        Spacer(Modifier.height(9.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (next != null) "Day ${next.day} · ${next.label}" else "Plan complete",
+                color = c.muted,
+                fontSize = 10.5.sp,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Icon(Icons.Outlined.ArrowForward, contentDescription = null, tint = c.accent, modifier = Modifier.width(16.dp))
         }
     }
 }

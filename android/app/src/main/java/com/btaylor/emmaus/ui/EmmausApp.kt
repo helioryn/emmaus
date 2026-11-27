@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Create
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.Icon
@@ -62,6 +63,10 @@ fun EmmausApp(vm: AppViewModel) {
         BackHandler(enabled = vm.screen != Screen.HOME && !vm.sheetOpen && !vm.bookPickerOpen && !vm.settingsOpen) {
             vm.screen = Screen.HOME
         }
+        BackHandler(
+            enabled = vm.screen == Screen.PLANS && vm.openPlanId != null &&
+                !vm.sheetOpen && !vm.bookPickerOpen && !vm.settingsOpen
+        ) { vm.openPlanId = null }
 
         Scaffold(
             containerColor = c.background,
@@ -72,8 +77,9 @@ fun EmmausApp(vm: AppViewModel) {
                         Triple(Screen.HOME, "Home", Icons.Filled.Home),
                         Triple(Screen.READ, "Read", Icons.Filled.MenuBook),
                         Triple(Screen.SEARCH, "Search", Icons.Filled.Search),
+                        Triple(Screen.PLANS, "Plans", Icons.Outlined.CalendarMonth),
                         Triple(Screen.WORD, "Word", Icons.Outlined.Translate),
-                        Triple(Screen.NOTEBOOK, "Notebook", Icons.Outlined.Create)
+                        Triple(Screen.NOTEBOOK, "Notes", Icons.Outlined.Create)
                     )
                     items.forEach { (screen, label, icon) ->
                         NavigationBarItem(
@@ -101,6 +107,7 @@ fun EmmausApp(vm: AppViewModel) {
                     Screen.HOME -> HomeScreen(vm)
                     Screen.READ -> if (vm.overviewOpen) BookOverviewScreen(vm) else ReaderScreen(vm, listState)
                     Screen.SEARCH -> SearchScreen(vm)
+                    Screen.PLANS -> PlansScreen(vm)
                     Screen.WORD -> WordStudyScreen(vm)
                     Screen.NOTEBOOK -> NotebookScreen(vm)
                 }
