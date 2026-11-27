@@ -9,7 +9,9 @@ three licensed translations, which use your own API.Bible key.
 dist/Emmaus-android-test.apk      ~147 MB, release build, signed with a local test key
 ```
 
-- Package: `com.btaylor.emmaus`, version 1.0.1 (versionCode 2)
+- Package: `com.btaylor.emmaus`, version 1.1.0 (versionCode 3)
+- New in 1.1: reading plans, Markdown export, tablet side-by-side study panel,
+  API key in the Android Keystore, first-run space check and recovery
 - Minimum Android: 8.0 (API 26)
 - First launch unpacks a 454 MB Bible library into app storage, so it shows a
   “Preparing the library…” screen for up to a minute. Later launches open instantly.
@@ -84,6 +86,10 @@ required copyright notice is shown under each chapter.
 cd android
 ./gradlew :app:assembleRelease
 cp app/build/outputs/apk/release/app-release.apk ../dist/Emmaus-android-test.apk
+
+# Play upload format
+./gradlew :app:bundleRelease
+# android/app/build/outputs/bundle/release/app-release.aab
 ```
 
 Gradle signs the release APK itself. When `android/emmaus-testing.jks` is present it

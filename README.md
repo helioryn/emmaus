@@ -99,7 +99,7 @@ shipped in the app.
 | Platform | Status | How |
 |---|---|---|
 | **macOS 14+** | Beta | Build from source (below). A notarized `.dmg` needs an Apple Developer account — [help wanted](#good-first-issues). |
-| **Android 8+** | Alpha | Sideload the APK from [Releases](../../releases), or build it (below). |
+| **Android 8+** | Alpha | Sideload the APK from [Releases](../../releases), or build it (below). Play closed testing pending — see [the release checklist](docs/play/release-checklist.md). |
 
 Both platforms are the same idea in native toolkits: SwiftUI on the Mac, Kotlin +
 Compose on Android. No Electron, no web view, no shared runtime.
@@ -151,7 +151,7 @@ build.
 | | |
 |---|---|
 | **macOS** | Feature-complete beta. Reader, study desk, word study, notes, plans, search, TTS. |
-| **Android** | Alpha. Reader, study sheet, word study, notes, plans, search. |
+| **Android** | Alpha. Reader, study sheet, word study, notes, plans, search, Markdown export, tablet side panel. |
 | **iOS** | Not started. |
 | **Sync** | Not built. Personal data is local-only, exportable as JSON and Markdown. |
 
