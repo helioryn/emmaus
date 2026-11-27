@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.btaylor.emmaus.audio.TtsManager
 import com.btaylor.emmaus.data.ApiBible
 import com.btaylor.emmaus.data.ApiBibleException
+import com.btaylor.emmaus.data.ApiKeyStore
 import com.btaylor.emmaus.data.BibleDb
 import com.btaylor.emmaus.data.Book
 import com.btaylor.emmaus.data.BookNote
@@ -56,7 +57,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** 0..1 while the bundled library is being unpacked. */
     val prepareProgress = MutableStateFlow(0f)
 
-    var apiKey by mutableStateOf(user.setting("apiKey", ""))
+    private val apiKeys = ApiKeyStore(app)
+    var apiKey by mutableStateOf(apiKeys.read().ifEmpty { migrateLegacyKey() })
         private set
     var apiStatus by mutableStateOf<String?>(null)
         private set
@@ -246,10 +248,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- API.Bible ---------------------------------------------------------
 
+    /** Keys before 1.1 lived in user.json; move one into the keystore and forget it. */
+    private fun migrateLegacyKey(): String {
+        val legacy = user.setting("apiKey", "").trim()
+        if (legacy.isEmpty()) return ""
+        apiKeys.write(legacy)
+        user.removeSetting("apiKey")
+        return legacy
+    }
+
     fun saveApiKey(value: String) {
         val clean = value.trim()
         apiKey = clean
-        user.setSetting("apiKey", clean)
+        apiKeys.write(clean)
         apiStatus = null
     }
 

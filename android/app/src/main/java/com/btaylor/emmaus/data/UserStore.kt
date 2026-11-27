@@ -100,6 +100,10 @@ class UserStore(context: Context) {
         save()
     }
 
+    fun removeSetting(key: String) {
+        if (settings.remove(key) != null) save()
+    }
+
     fun setSetting(key: String, value: Int) = setSetting(key, value.toString())
     fun setSetting(key: String, value: Boolean) = setSetting(key, if (value) "1" else "0")
 
