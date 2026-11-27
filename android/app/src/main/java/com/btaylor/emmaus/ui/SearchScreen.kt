@@ -2,6 +2,8 @@ package com.btaylor.emmaus.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +45,8 @@ import androidx.compose.ui.unit.sp
 import com.btaylor.emmaus.AppViewModel
 import com.btaylor.emmaus.Screen
 import com.btaylor.emmaus.data.SearchHit
+import com.btaylor.emmaus.data.SearchScope
+import com.btaylor.emmaus.data.SearchScopeKind
 import com.btaylor.emmaus.data.refLabel
 
 @Composable
@@ -76,6 +80,29 @@ fun SearchScreen(vm: AppViewModel) {
                 Spacer(Modifier.weight(1f))
                 if (vm.hasSearched) {
                     Text("${vm.searchResults.size} results", color = c.muted, fontSize = 9.5.sp)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                fun apply(scope: SearchScope) {
+                    vm.searchScope = scope
+                    if (vm.hasSearched) vm.runSearch()
+                }
+                ScopeChip("All", vm.searchScope.kind == SearchScopeKind.ALL) { apply(SearchScope.All) }
+                ScopeChip("Old Testament", vm.searchScope.kind == SearchScopeKind.OLD) {
+                    apply(SearchScope(SearchScopeKind.OLD))
+                }
+                ScopeChip("New Testament", vm.searchScope.kind == SearchScopeKind.NEW) {
+                    apply(SearchScope(SearchScopeKind.NEW))
+                }
+                vm.activeBook?.let { book ->
+                    ScopeChip(
+                        book.name,
+                        vm.searchScope.kind == SearchScopeKind.BOOK && vm.searchScope.book == book.id
+                    ) { apply(SearchScope(SearchScopeKind.BOOK, book.id)) }
                 }
             }
         }
@@ -197,4 +224,21 @@ private fun highlightSnippet(snippet: String, accent: Color): AnnotatedString = 
         }
         rest = after.substring(close + 1)
     }
+}
+
+
+@Composable
+private fun ScopeChip(label: String, active: Boolean, onClick: () -> Unit) {
+    val c = Emmaus.colors
+    Text(
+        label,
+        color = if (active) c.background else c.muted,
+        fontSize = 10.sp,
+        fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+        modifier = Modifier
+            .clip(RoundedCornerShape(99.dp))
+            .background(if (active) c.accent else c.surface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    )
 }

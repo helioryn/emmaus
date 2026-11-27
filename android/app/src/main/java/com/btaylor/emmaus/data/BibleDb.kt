@@ -279,18 +279,34 @@ class BibleDb(private val context: Context) {
         return 0
     }
 
-    fun search(raw: String, translation: String, limit: Int = 200): List<SearchHit> {
+    fun search(
+        raw: String,
+        translation: String,
+        scope: SearchScope = SearchScope.All,
+        limit: Int = 200
+    ): List<SearchHit> {
         val expr = SearchQuery.ftsExpression(raw) ?: return emptyList()
+        val scopeSql = when (scope.kind) {
+            SearchScopeKind.ALL -> ""
+            SearchScopeKind.OLD -> " AND book<=39"
+            SearchScopeKind.NEW -> " AND book>=40"
+            SearchScopeKind.BOOK -> " AND book=?"
+        }
+        val args = if (scope.kind == SearchScopeKind.BOOK) {
+            arrayOf(expr, translation, (scope.book ?: 0).toString())
+        } else {
+            arrayOf(expr, translation)
+        }
         val out = mutableListOf<SearchHit>()
         db.rawQuery(
             """
             SELECT book,chapter,verse,text,
                    snippet(search,'⟦','⟧','…',-1,14) AS snip,
                    matchinfo(search,'pcx') AS mi
-            FROM search WHERE search MATCH ? AND translation=?
+            FROM search WHERE search MATCH ? AND translation=?$scopeSql
             LIMIT 350
             """.trimIndent(),
-            arrayOf(expr, translation)
+            args
         ).use { c ->
             val miIndex = c.getColumnIndexOrThrow("mi")
             while (c.moveToNext()) {
@@ -308,14 +324,19 @@ class BibleDb(private val context: Context) {
         }
         if (out.isEmpty()) {
             // Translations imported from eBible.org are not in the FTS index.
-            return literalSearch(raw, translation, limit)
+            return literalSearch(raw, translation, scope, limit)
         }
         return out.sortedWith(compareByDescending<SearchHit> { it.score }.thenBy { it.book }.thenBy { it.chapter }.thenBy { it.verse })
             .take(limit)
     }
 
     /** Plain substring search for translations the FTS index does not cover. */
-    private fun literalSearch(raw: String, translation: String, limit: Int): List<SearchHit> {
+    private fun literalSearch(
+        raw: String,
+        translation: String,
+        scope: SearchScope = SearchScope.All,
+        limit: Int
+    ): List<SearchHit> {
         var terms = SearchQuery.literalTerms(raw)
         if (terms.isEmpty()) SearchQuery.sanitize(raw, allowSpaces = true)?.let { terms = listOf(it) }
         if (terms.isEmpty()) return emptyList()
@@ -325,6 +346,15 @@ class BibleDb(private val context: Context) {
         for (term in terms.take(8)) {
             where.append(" AND text LIKE ? ESCAPE '\\'")
             args += "%${escapeLike(term)}%"
+        }
+        when (scope.kind) {
+            SearchScopeKind.ALL -> Unit
+            SearchScopeKind.OLD -> where.append(" AND book<=39")
+            SearchScopeKind.NEW -> where.append(" AND book>=40")
+            SearchScopeKind.BOOK -> {
+                where.append(" AND book=?")
+                args += (scope.book ?: 0).toString()
+            }
         }
         args += limit.toString()
 
@@ -346,7 +376,7 @@ class BibleDb(private val context: Context) {
             }
         }
         if (out.isEmpty() && usesDiacritics(translation)) {
-            return normalizedSearch(raw, translation, limit)
+            return normalizedSearch(raw, translation, scope, limit)
         }
         return out
     }
@@ -392,7 +422,12 @@ class BibleDb(private val context: Context) {
     }
 
     /** Matches an unpointed query against pointed Hebrew, Greek or Arabic. */
-    private fun normalizedSearch(raw: String, translation: String, limit: Int): List<SearchHit> {
+    private fun normalizedSearch(
+        raw: String,
+        translation: String,
+        scope: SearchScope,
+        limit: Int
+    ): List<SearchHit> {
         var needles = SearchQuery.literalTerms(raw)
             .map { SearchQuery.plain(it) }
             .filter { it.isNotEmpty() }
@@ -404,7 +439,7 @@ class BibleDb(private val context: Context) {
 
         val out = mutableListOf<SearchHit>()
         for (verse in plainCorpus(translation)) {
-            if (needles.all { verse.plain.contains(it) }) {
+            if (scope.matches(verse.book) && needles.all { verse.plain.contains(it) }) {
                 out += SearchHit(
                     book = verse.book,
                     chapter = verse.chapter,

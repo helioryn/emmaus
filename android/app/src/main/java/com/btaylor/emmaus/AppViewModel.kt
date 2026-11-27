@@ -23,6 +23,7 @@ import com.btaylor.emmaus.data.PlanLibrary
 import com.btaylor.emmaus.data.ReadingLocation
 import com.btaylor.emmaus.data.ReadingPlan
 import com.btaylor.emmaus.data.SearchHit
+import com.btaylor.emmaus.data.SearchScope
 import com.btaylor.emmaus.data.StrongsEntry
 import com.btaylor.emmaus.data.Translation
 import com.btaylor.emmaus.data.Token
@@ -116,6 +117,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     var searchQuery by mutableStateOf("")
+    var searchScope by mutableStateOf(SearchScope.All)
     var searchResults by mutableStateOf<List<SearchHit>>(emptyList())
     var searching by mutableStateOf(false)
     var hasSearched by mutableStateOf(false)
@@ -461,11 +463,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         val translation = translationCode
+        val scope = searchScope
         val generation = searchGeneration
         searching = true
         hasSearched = true
         viewModelScope.launch {
-            val hits = withContext(Dispatchers.IO) { bible.search(q, translation) }
+            val hits = withContext(Dispatchers.IO) { bible.search(q, translation, scope) }
             if (generation != searchGeneration) return@launch
             searchResults = hits
             searching = false

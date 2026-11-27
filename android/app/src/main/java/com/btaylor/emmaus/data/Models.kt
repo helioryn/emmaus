@@ -125,6 +125,32 @@ data class Occurrence(
     val morph: String
 )
 
+enum class SearchScopeKind { ALL, OLD, NEW, BOOK }
+
+/** Where a search may look. Mirrors the macOS scope chips. */
+data class SearchScope(
+    val kind: SearchScopeKind = SearchScopeKind.ALL,
+    val book: Int? = null
+) {
+    fun matches(candidate: Int): Boolean = when (kind) {
+        SearchScopeKind.ALL -> true
+        SearchScopeKind.OLD -> candidate <= 39
+        SearchScopeKind.NEW -> candidate >= 40
+        SearchScopeKind.BOOK -> candidate == book
+    }
+
+    fun label(bookName: String?): String = when (kind) {
+        SearchScopeKind.ALL -> "All"
+        SearchScopeKind.OLD -> "Old Testament"
+        SearchScopeKind.NEW -> "New Testament"
+        SearchScopeKind.BOOK -> bookName ?: "Book"
+    }
+
+    companion object {
+        val All = SearchScope()
+    }
+}
+
 data class SearchHit(
     val book: Int,
     val chapter: Int,
