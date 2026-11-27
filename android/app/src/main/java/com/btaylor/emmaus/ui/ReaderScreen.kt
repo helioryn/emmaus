@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyListState
@@ -92,9 +93,10 @@ fun ReaderScreen(vm: AppViewModel, listState: LazyListState) {
             }
             else -> {
                 val data = vm.chapterData!!
+                val wide = LocalConfiguration.current.screenWidthDp >= 720
                 LazyColumn(
                     state = listState,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                    contentPadding = PaddingValues(horizontal = if (wide) 40.dp else 16.dp, vertical = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     item(key = "heading") { ChapterHeading(vm) }

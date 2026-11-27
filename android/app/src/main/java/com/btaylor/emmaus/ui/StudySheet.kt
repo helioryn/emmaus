@@ -71,16 +71,28 @@ import androidx.compose.runtime.CompositionLocalProvider
 @Composable
 fun StudySheet(vm: AppViewModel) {
     val c = Emmaus.colors
-    val verse = vm.selectedVerse ?: return
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val context = LocalContext.current
 
     ModalBottomSheet(
         onDismissRequest = { vm.sheetOpen = false },
         sheetState = sheet,
         containerColor = c.surface
     ) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)) {
+        StudySheetBody(vm, Modifier.fillMaxWidth().fillMaxHeight(0.92f))
+    }
+}
+
+/**
+ * The study panel without the modal wrapper, so tablets can dock it beside the
+ * reader. [modifier] carries the height the caller wants.
+ */
+@Composable
+fun StudySheetBody(vm: AppViewModel, modifier: Modifier = Modifier) {
+    val c = Emmaus.colors
+    val verse = vm.selectedVerse ?: return
+    val context = LocalContext.current
+
+    Column(modifier) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.Top
@@ -141,7 +153,6 @@ fun StudySheet(vm: AppViewModel) {
             }
         }
     }
-}
 
 @Composable
 private fun StudyTab(vm: AppViewModel, verse: Int, context: android.content.Context) {

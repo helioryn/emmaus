@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -25,6 +27,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
@@ -37,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -54,6 +58,10 @@ fun EmmausApp(vm: AppViewModel) {
             return@EmmausTheme
         }
         val listState = rememberLazyListState()
+        // Tablets and foldables get the study panel docked beside the text.
+        val wide = LocalConfiguration.current.screenWidthDp >= 840
+        val paneOpen = wide && vm.screen == Screen.READ && !vm.overviewOpen &&
+            vm.sheetOpen && vm.selectedVerse != null
 
         LaunchedEffect(vm.bookId, vm.chapter) {
             if (vm.chapterData != null) listState.scrollToItem(0)
@@ -108,13 +116,26 @@ fun EmmausApp(vm: AppViewModel) {
             }
         ) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) {
-                when (vm.screen) {
-                    Screen.HOME -> HomeScreen(vm)
-                    Screen.READ -> if (vm.overviewOpen) BookOverviewScreen(vm) else ReaderScreen(vm, listState)
-                    Screen.SEARCH -> SearchScreen(vm)
-                    Screen.PLANS -> PlansScreen(vm)
-                    Screen.WORD -> WordStudyScreen(vm)
-                    Screen.NOTEBOOK -> NotebookScreen(vm)
+                if (paneOpen) {
+                    Row(Modifier.fillMaxSize()) {
+                        Box(Modifier.weight(1f)) { ReaderScreen(vm, listState) }
+                        Surface(
+                            Modifier.width(380.dp).fillMaxHeight(),
+                            color = c.surface,
+                            shadowElevation = 8.dp
+                        ) {
+                            StudySheetBody(vm)
+                        }
+                    }
+                } else {
+                    when (vm.screen) {
+                        Screen.HOME -> HomeScreen(vm)
+                        Screen.READ -> if (vm.overviewOpen) BookOverviewScreen(vm) else ReaderScreen(vm, listState)
+                        Screen.SEARCH -> SearchScreen(vm)
+                        Screen.PLANS -> PlansScreen(vm)
+                        Screen.WORD -> WordStudyScreen(vm)
+                        Screen.NOTEBOOK -> NotebookScreen(vm)
+                    }
                 }
             }
         }
@@ -122,7 +143,7 @@ fun EmmausApp(vm: AppViewModel) {
         when {
             vm.settingsOpen -> SettingsSheet(vm)
             vm.bookPickerOpen -> BookPickerSheet(vm)
-            vm.sheetOpen -> StudySheet(vm)
+            vm.sheetOpen && !paneOpen -> StudySheet(vm)
         }
 
         vm.toast?.let { message ->
