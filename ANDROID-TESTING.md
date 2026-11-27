@@ -6,10 +6,10 @@ three licensed translations, which use your own API.Bible key.
 ## The file
 
 ```
-dist/Emmaus-android-test.apk      ~140 MB, release build, signed with a local test key
+dist/Emmaus-android-test.apk      ~147 MB, release build, signed with a local test key
 ```
 
-- Package: `com.btaylor.emmaus`
+- Package: `com.btaylor.emmaus`, version 1.0.1 (versionCode 2)
 - Minimum Android: 8.0 (API 26)
 - First launch unpacks a 454 MB Bible library into app storage, so it shows a
   “Preparing the library…” screen for up to a minute. Later launches open instantly.
@@ -24,12 +24,28 @@ dist/Emmaus-android-test.apk      ~140 MB, release build, signed with a local te
 With a cable instead:
 
 ```bash
-adb uninstall com.btaylor.emmaus      # only needed if a differently-signed build is installed
 adb install -r dist/Emmaus-android-test.apk
 ```
 
-The test key is different from the debug key Gradle uses, so if you already have a
-debug build installed you must uninstall it first.
+If Android refuses the file — "there was a problem parsing the package", "app not
+installed", or "package conflicts with an existing package" — it is almost always one
+of three things:
+
+1. **A copy signed with a different key is already installed.** Uninstall it once:
+   `adb uninstall com.btaylor.emmaus`, or Settings → Apps → Emmaus → Uninstall.
+   Debug and release builds now share the test key, so this only bites against
+   builds made before 1.0.1 or by another machine.
+2. **The transfer truncated the file.** It is ~147 MB; some cloud apps stream it and
+   save a partial copy. Verify before installing:
+
+   ```bash
+   shasum -a 256 Emmaus-android-test.apk
+   ```
+
+   Compare with `shasum -a 256 dist/Emmaus-android-test.apk` on the machine that built
+   it. If they differ, copy again over USB or with `adb push`.
+3. **The phone is older than Android 8.0.** The manifest requires API 26; older
+   installers report it as an unreadable package.
 
 ## What is inside
 
@@ -67,12 +83,17 @@ required copyright notice is shown under each chapter.
 ```bash
 cd android
 ./gradlew :app:assembleRelease
-# then align + sign:
-BT=/opt/homebrew/share/android-commandlinetools/build-tools/36.0.0
-$BT/zipalign -f -p 4 app/build/outputs/apk/release/app-release-unsigned.apk /tmp/emmaus-aligned.apk
-$BT/apksigner sign --ks emmaus-testing.jks --ks-key-alias emmaus \
-  --ks-pass pass:emmaus-testing --key-pass pass:emmaus-testing \
-  --out ../dist/Emmaus-android-test.apk /tmp/emmaus-aligned.apk
+cp app/build/outputs/apk/release/app-release.apk ../dist/Emmaus-android-test.apk
+```
+
+Gradle signs the release APK itself. When `android/emmaus-testing.jks` is present it
+uses that key for both debug and release, so `adb install -r` upgrades cleanly. Get a
+keystore elsewhere (CI) and the release comes out unsigned; debug falls back to
+Gradle's own debug key. Override the key material without editing the build file:
+
+```bash
+./gradlew :app:assembleRelease \
+  -PEMMAUS_KEYSTORE_PASSWORD=... -PEMMAUS_KEY_ALIAS=... -PEMMAUS_KEY_PASSWORD=...
 ```
 
 The database comes from `../Resources/bible.db`. One command copies it into the app
@@ -92,7 +113,7 @@ Signing uses a local keystore that is deliberately **not** in this repository
 (`android/*.jks` is ignored). For your own builds, create one:
 
 ```bash
-keytool -genkeypair -keystore android/my-release.jks -alias emmaus \
+keytool -genkeypair -keystore android/emmaus-testing.jks -alias emmaus \
   -keyalg RSA -keysize 2048 -validity 10000
 ```
 
@@ -104,5 +125,6 @@ the previous one. Play distribution uses Play App Signing, not this key.
 - Only the 11 originally bundled Bibles are in the FTS index; the eBible additions use a
   LIKE fallback. Fast enough for one translation at a time.
 - The macOS app reads the same `Resources/bible.db`, so rebuilding it now produces a
-  larger bundle (~440 MB) with the same 41 translations. Its search is FTS-only, so the
-  new translations are readable but not searchable there until the index is rebuilt.
+  larger bundle (~460 MB) with the same 41 translations. It searches all of them: FTS
+  for the eight indexed translations, a literal scan for the rest, and normalised
+  matching for pointed Hebrew, Greek and Arabic.

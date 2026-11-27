@@ -12,15 +12,37 @@ android {
         applicationId = "com.btaylor.emmaus"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.1"
         resourceConfigurations += listOf("en")
     }
 
+    // The sideload key lives outside the repository. When it is present, debug
+    // and release builds share it, so installing one over the other is an
+    // upgrade rather than a signature mismatch. CI has no keystore and falls
+    // back to Gradle's debug signing.
+    val testKeystore = rootProject.file("emmaus-testing.jks")
+    val hasTestKeystore = testKeystore.exists()
+
+    signingConfigs {
+        if (hasTestKeystore) {
+            create("testing") {
+                storeFile = testKeystore
+                storePassword = providers.gradleProperty("EMMAUS_KEYSTORE_PASSWORD").getOrElse("emmaus-testing")
+                keyAlias = providers.gradleProperty("EMMAUS_KEY_ALIAS").getOrElse("emmaus")
+                keyPassword = providers.gradleProperty("EMMAUS_KEY_PASSWORD").getOrElse("emmaus-testing")
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            if (hasTestKeystore) signingConfig = signingConfigs.getByName("testing")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (hasTestKeystore) signingConfig = signingConfigs.getByName("testing")
         }
     }
 
