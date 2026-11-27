@@ -2,8 +2,11 @@ package com.btaylor.emmaus.data
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.os.StatFs
 import org.json.JSONArray
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.max
@@ -17,29 +20,113 @@ class BibleDb(private val context: Context) {
             database?.let { return it }
             synchronized(this) {
                 database?.let { return it }
-                val opened = openDatabase()
+                val opened = openDatabase {}
                 database = opened
                 return opened
             }
         }
 
-    /** Copies the bundled library out of the APK on first launch. Call from a background thread. */
-    fun prepare(): Long = db.path?.let { File(it).length() } ?: 0L
+    /**
+     * Copies the bundled library out of the APK on first launch and opens it.
+     * Call from a background thread; [onProgress] reports 0..1 while unpacking.
+     */
+    fun prepare(onProgress: (Float) -> Unit = {}): Long {
+        val opened = synchronized(this) {
+            database ?: openDatabase(onProgress).also { database = it }
+        }
+        return opened.path?.let { File(it).length() } ?: 0L
+    }
 
     fun isPrepared(): Boolean = database != null
 
-    private fun openDatabase(): SQLiteDatabase {
+    private fun openDatabase(onProgress: (Float) -> Unit): SQLiteDatabase {
         val external = context.getExternalFilesDir(null)?.resolve("bible.db")
         if (external != null && external.exists()) {
-            return SQLiteDatabase.openDatabase(external.path, null, SQLiteDatabase.OPEN_READONLY)
+            val opened = tryOpen(external)
+            if (opened != null) return opened
+            // A half-written copy from an interrupted transfer: replace it.
+            external.delete()
         }
+
         val internal = File(context.filesDir, "bible.db")
-        if (!internal.exists()) {
-            context.assets.open("bible.db").use { input ->
-                internal.outputStream().use { output -> input.copyTo(output, 1 shl 16) }
+        if (!internal.exists()) installDatabase(internal, onProgress)
+
+        val opened = tryOpen(internal)
+        if (opened != null) return opened
+
+        // Corrupt copy (killed mid-install, storage error). Unpack once more.
+        internal.delete()
+        installDatabase(internal, onProgress)
+        return tryOpen(internal)
+            ?: throw IOException("The Bible library could not be opened after copying it again.")
+    }
+
+    private fun tryOpen(file: File): SQLiteDatabase? {
+        if (!file.exists()) return null
+        var opened: SQLiteDatabase? = null
+        return try {
+            opened = SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)
+            opened.rawQuery("SELECT COUNT(*) FROM translations", null).use { it.moveToFirst() }
+            opened
+        } catch (e: Exception) {
+            opened?.close()
+            null
+        }
+    }
+
+    /** Writes the asset to a temporary file, then renames, so a kill cannot leave a partial DB. */
+    private fun installDatabase(target: File, onProgress: (Float) -> Unit) {
+        val parent = target.parentFile ?: throw IOException("No app storage available.")
+        parent.mkdirs()
+
+        val assetLength = try {
+            context.assets.openFd("bible.db").use { it.length }
+        } catch (e: Exception) {
+            0L
+        }
+        val margin = 64L * 1024 * 1024
+        val required = (if (assetLength > 0) assetLength else 500L * 1024 * 1024) + margin
+        val available = try {
+            StatFs(parent.path).availableBytes
+        } catch (e: Exception) {
+            Long.MAX_VALUE
+        }
+        if (available < required) {
+            val free = available / (1024 * 1024)
+            val need = required / (1024 * 1024)
+            throw IOException("Emmaus needs about $need MB free to unpack the library; this device has $free MB.")
+        }
+
+        val temp = File(parent, "bible.db.tmp")
+        if (temp.exists()) temp.delete()
+
+        var total = assetLength
+        context.assets.open("bible.db").use { input ->
+            if (total <= 0) total = input.available().toLong()
+            FileOutputStream(temp).use { output ->
+                val buffer = ByteArray(1 shl 20)
+                var copied = 0L
+                var lastReported = 0f
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read <= 0) break
+                    output.write(buffer, 0, read)
+                    copied += read
+                    val fraction = if (total > 0) (copied.toFloat() / total).coerceIn(0f, 1f) else 0f
+                    if (fraction - lastReported >= 0.01f) {
+                        lastReported = fraction
+                        onProgress(fraction)
+                    }
+                }
+                output.fd.sync()
             }
         }
-        return SQLiteDatabase.openDatabase(internal.path, null, SQLiteDatabase.OPEN_READONLY)
+
+        if (!temp.renameTo(target)) {
+            temp.copyTo(target, overwrite = true)
+            temp.delete()
+        }
+        onProgress(1f)
     }
 
     val translations: List<Translation> by lazy {

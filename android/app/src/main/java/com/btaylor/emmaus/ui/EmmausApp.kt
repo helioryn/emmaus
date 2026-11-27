@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,9 +26,13 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -159,20 +164,41 @@ private fun PreparingScreen(vm: AppViewModel) {
             Spacer(Modifier.height(30.dp))
             val problem = vm.error
             when {
-                problem != null -> Text(
-                    problem,
-                    color = c.red,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 36.dp)
-                )
+                problem != null -> {
+                    Text(
+                        problem,
+                        color = c.red,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 36.dp)
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedButton(onClick = { vm.retryPrepare() }, shape = RoundedCornerShape(9.dp)) {
+                        Text("Try again", color = c.ink, fontSize = 12.sp)
+                    }
+                }
                 else -> {
-                    CircularProgressIndicator(color = c.accent)
+                    val progress by vm.prepareProgress.collectAsState()
+                    if (progress > 0f) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.width(190.dp).height(3.dp),
+                            color = c.accent,
+                            trackColor = c.border
+                        )
+                    } else {
+                        CircularProgressIndicator(color = c.accent)
+                    }
                     Spacer(Modifier.height(18.dp))
-                    Text("Preparing the library…", color = c.ink, fontSize = 13.sp)
+                    Text(
+                        if (progress > 0f) "Unpacking the library — ${(progress * 100).toInt()}%"
+                        else "Preparing the library…",
+                        color = c.ink,
+                        fontSize = 13.sp
+                    )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "First launch only — unpacking the bundled Bibles. This can take a minute.",
+                        "First launch only — unpacking the bundled Bibles. Needs about 600 MB free and can take a minute.",
                         color = c.muted,
                         fontSize = 10.sp,
                         textAlign = TextAlign.Center,

@@ -32,6 +32,7 @@ import com.btaylor.emmaus.data.Verse
 import com.btaylor.emmaus.data.refLabel
 import com.btaylor.emmaus.data.verseKey
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -52,6 +53,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var preparing by mutableStateOf(true)
         private set
+    /** 0..1 while the bundled library is being unpacked. */
+    val prepareProgress = MutableStateFlow(0f)
 
     var apiKey by mutableStateOf(user.setting("apiKey", ""))
         private set
@@ -141,19 +144,36 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         get() = bible.book(bookId)
 
     init {
+        startPrepare()
+    }
+
+    private fun startPrepare() {
         viewModelScope.launch {
-            val error = withContext(Dispatchers.IO) {
-                runCatching { bible.prepare() }.exceptionOrNull()
+            preparing = true
+            prepared = false
+            error = null
+            prepareProgress.value = 0f
+            val failure = withContext(Dispatchers.IO) {
+                runCatching {
+                    bible.prepare { fraction -> prepareProgress.value = fraction }
+                }.exceptionOrNull()
             }
             preparing = false
-            if (error != null) {
-                this@AppViewModel.error = "Could not open the Bible library. ${error.message ?: ""}".trim()
+            if (failure != null) {
+                this@AppViewModel.error = failure.message?.takeIf { it.isNotBlank() }
+                    ?: "Could not open the Bible library."
                 loading = false
                 return@launch
             }
             prepared = true
             loadChapter(record = true)
         }
+    }
+
+    /** Try the first-run unpack again after an error, e.g. once space is freed. */
+    fun retryPrepare() {
+        if (preparing) return
+        startPrepare()
     }
 
     fun loadChapter(record: Boolean = false) {
