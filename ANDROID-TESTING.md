@@ -9,6 +9,10 @@ three licensed translations, which use your own API.Bible key.
 dist/Emmaus-android-test.apk      ~147 MB, release build, signed with a local test key
 ```
 
+The published copy is `Emmaus-1.1.0.apk` on the
+[v1.1.0 release](https://github.com/helioryn/emmaus/releases/tag/v1.1.0-android).
+Use that file, not an older release: 1.0.1 has the same app but no Plans tab.
+
 - Package: `com.btaylor.emmaus`, version 1.1.0 (versionCode 3)
 - New in 1.1: reading plans, Markdown export, tablet side-by-side study panel,
   API key in the Android Keystore, first-run space check and recovery

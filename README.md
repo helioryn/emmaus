@@ -99,7 +99,7 @@ shipped in the app.
 | Platform | Status | How |
 |---|---|---|
 | **macOS 14+** | Beta | Build from source (below). A notarized `.dmg` needs an Apple Developer account — [help wanted](#good-first-issues). |
-| **Android 8+** | Alpha | Sideload the APK from [Releases](../../releases), or build it (below). Play closed testing pending — see [the release checklist](docs/play/release-checklist.md). |
+| **Android 8+** | Alpha | Download [Emmaus-1.1.0.apk](../../releases/download/v1.1.0-android/Emmaus-1.1.0.apk) from [Releases](../../releases/latest), or build it (below). Play closed testing pending — see [the release checklist](docs/play/release-checklist.md). |
 
 Both platforms are the same idea in native toolkits: SwiftUI on the Mac, Kotlin +
 Compose on Android. No Electron, no web view, no shared runtime.
