@@ -250,6 +250,10 @@ class UserStore(context: Context) {
         return Triple(b, c, v)
     }
 
+    /** Human-readable export, matching the macOS Markdown output. */
+    fun exportMarkdown(bookName: (Int) -> String): String =
+        NoteExport.markdown(notesInBookAll(), bookmarkKeys(), bookName)
+
     fun exportJson(): String {
         val root = JSONObject()
         root.put("notes", JSONObject(notes.toMap() as Map<*, *>))

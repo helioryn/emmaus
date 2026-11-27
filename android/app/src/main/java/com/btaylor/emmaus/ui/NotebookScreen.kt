@@ -1,6 +1,5 @@
 package com.btaylor.emmaus.ui
 
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,7 +48,7 @@ import com.btaylor.emmaus.data.refLabel
 @Composable
 fun NotebookScreen(vm: AppViewModel) {
     val c = Emmaus.colors
-    val context = LocalContext.current
+    var exportOpen by remember { mutableStateOf(false) }
     var tab by remember { mutableStateOf(0) }
     val tabs = listOf("Notes", "Highlights", "Bookmarks")
 
@@ -66,13 +65,7 @@ fun NotebookScreen(vm: AppViewModel) {
                     fontSize = 10.sp
                 )
             }
-            IconButton(onClick = {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/json"
-                    putExtra(Intent.EXTRA_TEXT, vm.user.exportJson())
-                }
-                context.startActivity(Intent.createChooser(intent, "Export Emmaus data"))
-            }) {
+            IconButton(onClick = { exportOpen = true }) {
                 Icon(Icons.Outlined.IosShare, contentDescription = "Export", tint = c.accent)
             }
         }
@@ -93,6 +86,8 @@ fun NotebookScreen(vm: AppViewModel) {
             else -> BookmarksList(vm)
         }
     }
+
+    if (exportOpen) ExportDialog(vm) { exportOpen = false }
 }
 
 @Composable

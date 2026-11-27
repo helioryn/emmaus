@@ -57,6 +57,7 @@ import com.btaylor.emmaus.AppViewModel
 fun SettingsSheet(vm: AppViewModel) {
     val c = Emmaus.colors
     val context = LocalContext.current
+    var exportOpen by remember { mutableStateOf(false) }
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val themes = listOf(
         Triple("parchment", "Parchment", Color(0xFFF4EFE5)),
@@ -249,13 +250,7 @@ fun SettingsSheet(vm: AppViewModel) {
             SectionLabel("Data")
             Spacer(Modifier.height(6.dp))
             OutlinedButton(
-                onClick = {
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "application/json"
-                        putExtra(Intent.EXTRA_TEXT, vm.user.exportJson())
-                    }
-                    context.startActivity(Intent.createChooser(intent, "Export Emmaus data"))
-                },
+                onClick = { exportOpen = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Export notes, highlights & bookmarks", fontSize = 11.sp)
@@ -283,4 +278,6 @@ fun SettingsSheet(vm: AppViewModel) {
             Spacer(Modifier.height(40.dp))
         }
     }
+
+    if (exportOpen) ExportDialog(vm) { exportOpen = false }
 }
